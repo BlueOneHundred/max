@@ -47,7 +47,7 @@ TikTok ads run from TikTok Ads Manager. Everything is built for the full-screen 
 | Item | Formats |
 |---|---|
 | Carousel video | infeed-9x16, 15 s |
-| Each still ad | infeed-9x16 as a short video (the still with a slow zoom, about 6 to 10 s), since TikTok runs videos and music-backed carousels, not single stills |
+| Each still ad | infeed-9x16 as an 8-second video (the still with a slow zoom), since TikTok runs videos and music-backed carousels, not single stills |
 
 ## Sources (checked 2026-11-21)
 - In-Feed sizes, file types, 10-minute maximum, 500 MB, 516 kbps, caption, display name, profile image: TikTok Ads help "TikTok Auction In-Feed Ads" (ads.tiktok.com/help/article/video-ads-specifications), **official**, page updated June 2026.

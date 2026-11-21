@@ -149,3 +149,9 @@ test('videos get a contact sheet of every card at its fullest', () => {
   const s = P.contactSheetHtml(['a', 'b'], 1920, 1080);
   assert.equal(s.height, 672); assert.equal((s.html.match(/<img /g) || []).length, 2);
 });
+
+test('a word label without a step number becomes a pill', () => {
+  const f = {id: 'c', width: 1080, height: 1080, safe: {top: 54, bottom: 54, left: 54, right: 54, blocks: []}};
+  const h = P.stillPage({item: {stepLabel: 'TREE WORK', headline: 'Tree removal.'}, brand: {name: 'J'}, f, images: {}});
+  assert.match(h, /<div class="kick a" data-a="step" data-k="kick">TREE WORK<\/div>/); assert.doesNotMatch(h, /stepnum/);
+});

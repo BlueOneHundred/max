@@ -103,6 +103,7 @@ body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiase
 .wide .txt{right:auto;width:${px(wideWidth)}}
 .step{display:inline-flex;align-items:center;gap:${px(1.2 * u)};font-weight:800;letter-spacing:.12em;font-size:${px(1.9 * u)};color:${C.soft};margin-bottom:${px(1.4 * u)}}
 .step b{display:inline-flex;align-items:center;justify-content:center;width:${px(5.2 * u)};height:${px(5.2 * u)};border-radius:50%;background:${C.accent};color:${C.accentText};font-family:'Archivo Black';font-weight:400;font-size:${px(2.8 * u)};letter-spacing:0}
+.kick{display:inline-block;background:${C.accent};color:${C.accentText};font-weight:800;letter-spacing:.12em;font-size:${px(1.9 * u)};padding:${px(0.8 * u)} ${px(1.5 * u)};border-radius:${px(0.6 * u)};margin-bottom:${px(1.4 * u)}}
 .big{font-family:'Archivo Black';line-height:.9;letter-spacing:-.02em;white-space:nowrap}
 .big2{font-family:'Archivo Black';font-size:${px(4.6 * u)};line-height:1;margin-top:${px(0.6 * u)}}
 .h{font-family:'Archivo Black';line-height:1.04;letter-spacing:-.01em;text-wrap:balance}
@@ -126,6 +127,7 @@ export const brandHtml = brand => `<div class="brand" data-k="brand">${lines(bra
 
 // One frame (a still ad, a carousel card, or one card of a video). item fields, all optional except one main line:
 // tag, labels [{text, side: left|right, at: 0..1 of the height, colour}], big + big2 (a large number and its words),
+// step + stepLabel (a numbered step), or stepLabel alone (a word label in a pill, e.g. "TREE WORK"),
 // headline (+ headlineSize in hundredths of the short side), quote, who, sub, step + stepLabel, badge, swipe, count.
 // focus: "x% y%" for every shape, or {square, tall, story, wide}.
 export function frameHtml({item, brand, f, images = {}, id = '', hideTag = false, hideBrand = false}) {
@@ -142,6 +144,7 @@ export function frameHtml({item, brand, f, images = {}, id = '', hideTag = false
   }
   let body = '';
   if (item.step) body += `<div class="step a" data-a="step"><b data-k="stepnum">${esc(item.step)}</b><span data-k="step">${esc(item.stepLabel || '')}</span></div>`;
+  else if (item.stepLabel) body += `<div class="kick a" data-a="step" data-k="kick">${esc(item.stepLabel)}</div>`;
   if (item.big) body += `<div class="big a" data-k="big" data-main style="font-size:${(item.bigSize || 15) * u}px">${esc(item.big)}</div>${item.big2 ? `<div class="big2 a" data-k="big2">${esc(item.big2)}</div>` : ''}`;
   if (item.headline) body += `<div class="h a" data-k="h" data-main style="font-size:${(item.headlineSize || 8) * u}px">${rich(item.headline)}</div>`;
   if (item.quote) body += `<div class="q a" data-k="q" data-main style="font-size:${(item.quoteSize || 5.2) * u}px">${rich(item.quote)}</div>`;

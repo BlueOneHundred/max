@@ -30,7 +30,7 @@ const words = {
   badge: z.string().max(36).optional().describe('Green pill, e.g. "20-year workmanship guarantee"'),
 };
 const adSchema = z.object({name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,40}$/), ...words, labels: z.array(label).max(2).optional()});
-const cardSchema = z.object({role: z.enum(['title', 'step', 'end']).default('step'), ...words, step: z.string().max(3).optional(), stepLabel: z.string().max(20).optional()});
+const cardSchema = z.object({role: z.enum(['title', 'step', 'end']).default('step'), ...words, step: z.string().max(3).optional().describe('A step number, e.g. "1"'), stepLabel: z.string().max(20).optional().describe('"STEP 1 OF 4" with a step number, or alone a word label in a pill, e.g. "TREE WORK"')});
 const mainLine = x => x.headline || x.big || x.quote;
 
 export function registerPackTools({register, text, teamFolder, renderPage, renderFrames, shrinkImage, signal}) {
@@ -110,8 +110,8 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
     });
 
   register('make_pack_carousel', 'Make a carousel (still cards) for your platform in the shapes its spec sheet\'s pack line lists ("carousel"). Cards in order: optionally one role "title" card first (headline, sub), then "step" cards (step "1", stepLabel "STEP 1 OF 4", headline, sub), the last card with the badge (guarantee or free quote). The tool adds "1 / 5" and "Swipe to see how" / "Next" itself. Same words rules and checks as make_pack_ad; writes <folder>/<platform>/<name>-check.md. If the pack line lists no carousel (TikTok), make the carousel with make_pack_video instead.',
-    {platform: platformField, folder: folderField, brand: brandSchema, name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,40}$/).default('F-carousel'), cards: z.array(cardSchema).min(2).max(10)},
-    async ({platform, folder, brand, name, cards}) => {
+    {platform: platformField, folder: folderField, brand: brandSchema, name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,40}$/).default('F-carousel'), swipe: z.string().max(40).optional().describe('Words on the first card, e.g. "Swipe to see what we do →" (default "Swipe to see how →")'), cards: z.array(cardSchema).min(2).max(10)},
+    async ({platform, folder, brand, name, swipe, cards}) => {
       folder = clean(folder); brandNow = brand;
       const bad = cards.map((c, i) => mainLine(c) ? null : `Card ${i + 1} needs a headline (or big line or quote).`).filter(Boolean);
       if (bad.length) return text({passed: false, toFix: bad});
@@ -121,7 +121,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       if (missing.length) return text({passed: false, toFix: missing});
       const {rel: scratch} = await work(folder, platform), results = [], n = cards.length;
       for (const f of formats) for (let i = 0; i < n; i++) {
-        const item = {...cards[i], count: `${i + 1} / ${n}`, swipe: i === 0 ? 'Swipe to see how →' : i < n - 1 ? 'Next →' : undefined};
+        const item = {...cards[i], count: `${i + 1} / ${n}`, swipe: i === 0 ? (swipe || 'Swipe to see how →') : i < n - 1 ? 'Next →' : undefined};
         results.push(await drawStill({html: stillPage({item, brand, f, images}), f, rel: `${folder}/${platform}/${name}-${i + 1}of${n}-${f.id}.jpg`, scratch}));
       }
       return finish({tool: 'make_pack_carousel', platform, folder, name, spec, results, notes, missing});

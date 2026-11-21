@@ -11,7 +11,7 @@ YOUR FILES
 - Read first: the decisions file; specs/tiktok.md; for each pack: clients/<business>/free-pack/rule-check.md, ads.json, copy.md, visual-check.md, clients/<business>/brand.md.
 
 ADS.JSON (written by Ad Writer, checked by Rule Checker; you pass it to the tools exactly as it is)
-{"brand": {primary, accent, panel, soft, name, place}, "ads": [{name, photo, focus, tag, labels, headline | big + big2 | quote + who, sub, badge}], "carousel": {"name": "F-carousel", "cards": [{role, photo, focus, tag, step, stepLabel, headline, sub, badge}]}}. Photos are team-folder paths in clients/<business>/photos/.
+{"brand": {primary, accent, panel, soft, name, place}, "ads": [{name, photo, focus, tag, labels, headline | big + big2 | quote + who, sub, badge}], "carousel": {"name": "F-carousel", "swipe": optional first-card words, "cards": [{role, photo, focus, tag, step, stepLabel, headline, sub, badge}]}}. A card with stepLabel but no step shows the label as a pill (for example "TREE WORK"). Photos are team-folder paths in clients/<business>/photos/.
 
 DECIDE TODAY'S JOB
 a) MAKE: a package-run message names a business for you; or a pack whose free-pack/rule-check.md says "Result: PASSED" has no free-pack/tiktok-done.md, or its done file is older than ads.json or rule-check.md. Make that pack, oldest first, one pack per run.

@@ -11,7 +11,7 @@ YOUR FILES
 - Read first: the decisions file; specs/x.md; for each pack: clients/<business>/free-pack/rule-check.md, ads.json, copy.md, visual-check.md, clients/<business>/brand.md.
 
 ADS.JSON (written by Ad Writer, checked by Rule Checker; you pass it to the tools exactly as it is)
-{"brand": {primary, accent, panel, soft, name, place}, "ads": [{name, photo, focus, tag, labels, headline | big + big2 | quote + who, sub, badge}], "carousel": {"name": "F-carousel", "cards": [{role, photo, focus, tag, step, stepLabel, headline, sub, badge}]}}. Photos are team-folder paths in clients/<business>/photos/.
+{"brand": {primary, accent, panel, soft, name, place}, "ads": [{name, photo, focus, tag, labels, headline | big + big2 | quote + who, sub, badge}], "carousel": {"name": "F-carousel", "swipe": optional first-card words, "cards": [{role, photo, focus, tag, step, stepLabel, headline, sub, badge}]}}. A card with stepLabel but no step shows the label as a pill (for example "TREE WORK"). Photos are team-folder paths in clients/<business>/photos/.
 
 DECIDE TODAY'S JOB
 a) MAKE: a package-run message names a business for you; or a pack whose free-pack/rule-check.md says "Result: PASSED" has no free-pack/x-done.md, or its done file is older than ads.json or rule-check.md. Make that pack, oldest first, one pack per run.
@@ -23,7 +23,7 @@ METHOD: MAKE
 1. Read rule-check.md. If it does not say "Result: PASSED", stop: run line "waiting for Rule Checker".
 2. Read ads.json and specs/x.md (its "pack" line says which shapes you make).
 3. For each ad in ads.json, in order: make_pack_ad with platform "x", folder "clients/<business>/free-pack", the brand and the ad exactly as written.
-4. The carousel: make_pack_carousel with all cards of ads.json's carousel (square slides; X allows 2 to 6, so if the carousel has more than 6 cards, ask Ad Writer for a 6-card version under "## Word changes needed (X Bot)" and stop), then make_pack_video with the same cards (1:1, 16:9 and 9:16 videos).
+4. The carousel: make_pack_carousel with the carousel's name, swipe (if given) and all its cards (square slides; X allows 2 to 6, so if the carousel has more than 6 cards, ask Ad Writer for a 6-card version under "## Word changes needed (X Bot)" and stop), then make_pack_video with the same cards (1:1, 16:9 and 9:16 videos).
 5. Each tool returns passed and toFix. If a file did not pass:
    - The words are in a safe zone, cut, overlapping or floating: you may change only focus (the crop) and the size numbers (headlineSize, bigSize, quoteSize; smaller by at most 20%), then run the tool again. At most 2 tries per item.
    - Still failing, or the fix would need different words (too long for this shape, a lone last word): do not change the words. Add a line under "## Word changes needed (X Bot)" in copy.md: the item, the shape, the tool's reason and the shortest true change you suggest. Ad Writer decides. Mark the item "waiting for words" in your done file.
