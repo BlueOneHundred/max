@@ -142,3 +142,10 @@ test('the business name stacks under the words on wide frames and where buttons 
   assert.match(P.videoPage({cards: [{headline: 'a'}, {headline: 'b'}], brand: {name: 'B'}, f: wide, images: {}}), /id="fixed" class="wide stack"/);
   assert.match(P.packToFix([{file: 'v.mp4', problems: [{kind: 'floating', text: 'B', where: 'brand'}]}])[0], /floats mid-frame/);
 });
+
+test('videos get a contact sheet of every card at its fullest', () => {
+  assert.deepEqual(P.holdFrames(4, 15), [50, 164, 278, 392]);
+  assert.deepEqual(P.holdFrames(1, 8), [50]);
+  const s = P.contactSheetHtml(['a', 'b'], 1920, 1080);
+  assert.equal(s.height, 672); assert.equal((s.html.match(/<img /g) || []).length, 2);
+});

@@ -8,7 +8,7 @@ import {ffmpeg} from './media.mjs';
 import {imageDataUrl} from './book-builder.mjs';
 import {imageSize} from './book-pictures.mjs';
 import {contrastProblems} from './carousel-builder.mjs';
-import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
+import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a colour like #1B3A9E');
 export const brandSchema = z.object({
@@ -63,7 +63,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
     await teamFolder.writeBytes(null, rel, shot.jpeg);
     return {file: rel, format: f.id, width: f.width, height: f.height, problems: [...shot.result.problems, ...measured.problems], shrunk: shot.result.shrunk};
   };
-  const drawVideo = async ({html, f, rel, scratch, scratchDir, seconds}) => {
+  const drawVideo = async ({html, f, rel, scratch, scratchDir, seconds, cards = 1}) => {
     if (!renderFrames) throw new Error('This Max build cannot make videos (no frame renderer).');
     await teamFolder.writeBytes(null, scratch + '/video.html', Buffer.from(html));
     const frames = Math.round(seconds * FPS), tmp = scratchDir + '/video.mp4';
@@ -71,10 +71,17 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
     const encoding = ffmpeg(['-y', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-r', String(FPS), tmp], {signal, onSpawn: c => { child = c; }});
     encoding.catch(() => {});
     const write = buf => new Promise((resolve, reject) => { if (!child || child.stdin.destroyed) return reject(new Error('The video encoder stopped.')); child.stdin.write(buf, e => e ? reject(e) : resolve()); });
-    const {result} = await renderFrames({file: await teamFolder.target(null, scratch + '/video.html'), width: f.width, height: f.height, root: teamFolder.root(), signal, frames, setup: VIDEO_SETUP, frameScript: videoFrameScript, onFrame: write, quality: 92});
+    const holds = new Set(holdFrames(cards, seconds)), kept = [];
+    const onFrame = async (buf, i) => { if (holds.has(i)) kept.push(buf); await write(buf); };
+    const {result} = await renderFrames({file: await teamFolder.target(null, scratch + '/video.html'), width: f.width, height: f.height, root: teamFolder.root(), signal, frames, setup: VIDEO_SETUP, frameScript: videoFrameScript, onFrame, quality: 92});
     child.stdin.end(); await encoding;
     await teamFolder.writeBytes(null, rel, await readFile(tmp));
-    return {file: rel, format: f.id, width: f.width, height: f.height, problems: result?.problems || [], shrunk: result?.shrunk || []};
+    // A contact sheet of every card at its fullest, so Visual Check can look at the video (it cannot play it).
+    const sheet = contactSheetHtml(kept.map(b => imageDataUrl(b, 'x.jpg')), f.width, f.height), sheetRel = rel.replace(/\.mp4$/, '-sheet.jpg');
+    await teamFolder.writeBytes(null, scratch + '/sheet.html', Buffer.from(sheet.html));
+    const shot = await renderPage({file: await teamFolder.target(null, scratch + '/sheet.html'), width: sheet.width, height: sheet.height, root: teamFolder.root(), signal, quality: 88});
+    await teamFolder.writeBytes(null, sheetRel, shot.jpeg);
+    return {sheet: sheetRel, file: rel, format: f.id, width: f.width, height: f.height, problems: result?.problems || [], shrunk: result?.shrunk || []};
   };
   let brandNow = null;
   const finish = async ({tool, platform, folder, name, spec, results, notes, missing}) => {
@@ -82,7 +89,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
     const toFix = [...missing, ...packToFix(results)], check = `${folder}/${platform}/${name}-check.md`;
     await teamFolder.writeBytes(null, check, Buffer.from(packCheckNote({tool, platform, name, specChecked: spec.checked, results, toFix, notes})));
     await rm(await teamFolder.target(null, `${folder}/${platform}/_work`, true), {recursive: true, force: true}).catch(() => {});
-    return text({platform, passed: toFix.length === 0, files: results.map(r => r.file), toFix, notes, check, note: toFix.length ? 'Not passed. Change the words, the focus or the sizes and run it again. Only "Result: PASSED" goes to Rule Checker.' : 'Passed the safe-zone and contrast checks. Look at every file with zoom_team_image before handing on.'});
+    return text({platform, passed: toFix.length === 0, files: results.map(r => r.file), sheets: results.map(r => r.sheet).filter(Boolean), toFix, notes, check, note: toFix.length ? 'Not passed. Change the focus or the sizes and run it again; if the words must change, ask Ad Writer (never change the words yourself).' : 'Passed the safe-zone and contrast checks. Look at every still, and every video\'s -sheet.jpg, with zoom_team_image before handing on.'});
   };
   const platformField = z.enum(PLATFORMS).describe('Your platform. Formats, sizes and safe zones come from specs/<platform>.md');
   const folderField = z.string().min(1).max(200).describe('The pack folder, e.g. clients/advanced-roofing/free-pack. Files go into <folder>/<platform>/');
@@ -98,7 +105,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       if (missing.length) return text({passed: false, toFix: missing});
       const {rel: scratch, dir: scratchDir} = await work(folder, platform), results = [];
       for (const f of stills) results.push(await drawStill({html: stillPage({item: ad, brand, f, images}), f, rel: `${folder}/${platform}/${ad.name}-${f.id}.jpg`, scratch}));
-      for (const f of videos) results.push(await drawVideo({html: videoPage({cards: [ad], brand, f, images, seconds: AD_VIDEO_SECONDS}), f, rel: `${folder}/${platform}/${ad.name}-${f.id}.mp4`, scratch, scratchDir, seconds: AD_VIDEO_SECONDS}));
+      for (const f of videos) results.push(await drawVideo({html: videoPage({cards: [ad], brand, f, images, seconds: AD_VIDEO_SECONDS}), f, rel: `${folder}/${platform}/${ad.name}-${f.id}.mp4`, scratch, scratchDir, seconds: AD_VIDEO_SECONDS, cards: 1}));
       return finish({tool: 'make_pack_ad', platform, folder, name: ad.name, spec, results, notes, missing});
     });
 
@@ -133,7 +140,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       const {images, notes, missing} = await loadPhotos(used, Math.max(...formats.map(f => f.width)));
       if (missing.length) return text({passed: false, toFix: missing});
       const {rel: scratch, dir: scratchDir} = await work(folder, platform), results = [], seconds = videoTiming(used.length, VIDEO_SECONDS).total;
-      for (const f of formats) results.push(await drawVideo({html: videoPage({cards: used, brand, f, images, transition, seconds}), f, rel: `${folder}/${platform}/${name}-video-${f.id}.mp4`, scratch, scratchDir, seconds}));
+      for (const f of formats) results.push(await drawVideo({html: videoPage({cards: used, brand, f, images, transition, seconds}), f, rel: `${folder}/${platform}/${name}-video-${f.id}.mp4`, scratch, scratchDir, seconds, cards: used.length}));
       return finish({tool: 'make_pack_video', platform, folder, name: name + '-video', spec, results, notes, missing});
     });
 }

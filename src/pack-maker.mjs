@@ -236,6 +236,15 @@ window.prepare=async()=>{await window.packReady;const shrunk=[];for(let i=0;i<T.
   return `<!doctype html><html><head><meta charset="utf-8"><style>${packCss(f, brand)}.f{will-change:transform,opacity}.a{will-change:transform,opacity}</style></head><body>${frames}${fixed}<script>${PACK_JS(f)}${timeline}</script></body></html>`;
 }
 export const VIDEO_SETUP = 'window.prepare()';
+// The frame numbers where each card is at its fullest (all words in), for the contact sheet Visual Check looks at.
+export function holdFrames(n, seconds) {
+  const {durs, starts} = videoTiming(n, seconds);
+  return starts.map((s, i) => Math.round((s + Math.min(durs[i] - CHANGE_SECONDS - 0.05, 1.1 + 0.55)) * FPS));
+}
+export function contactSheetHtml(frames, w, h) {
+  const H = 640, W = Math.round(w * H / h), gap = 16, total = frames.length * W + (frames.length + 1) * gap;
+  return {width: total, height: H + 2 * gap, html: `<!doctype html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}html,body{width:${total}px;height:${H + 2 * gap}px;background:#fff;overflow:hidden}body{display:flex;gap:${gap}px;padding:${gap}px}img{width:${W}px;height:${H}px;display:block;outline:1px solid #ccc}</style></head><body>${frames.map(src => `<img src="${src}">`).join('')}</body></html>`};
+}
 export const videoFrameScript = i => `setTime(${(i / FPS).toFixed(4)})`;
 
 // ---------- results ----------

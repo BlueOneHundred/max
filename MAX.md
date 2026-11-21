@@ -25,6 +25,12 @@ Max and Toby never share anything: different app, app ID, data folder, team fold
 - **Readable accent**: if white words on the brand's accent colour are under 4.5:1, badges and step circles use a deeper shade of the same colour (noted in the check file). Small photos (under 75% of the widest format) are noted as possibly soft.
 - Tests: `test/max-pack.test.mjs` (13 tests); full suite 449 pass, 1 skipped.
 
+## Max builds 3 to 5 (21 Nov 2026)
+- Build 3: the big number line ("20-YEAR") never wraps; it shrinks to fit.
+- Build 4: the business name sits under the words, on the left, on wide frames and wherever a button column narrows the words (TikTok); feed shapes keep it bottom right. New check "floating".
+- Build 5: make_pack_ad (adVideo) and make_pack_video also save `<file>-sheet.jpg`, a contact sheet of every card at its fullest, so Visual Check can look at videos.
+- `team/prompts/`: Max's shared rules and bot prompts (first 7 bots), the platform-bot template and generator, build.py (assembles `built/<bot>.txt`) and the setup sheet. The working copy is `Desktop\Max\prompts\`.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
