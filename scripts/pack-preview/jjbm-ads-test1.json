@@ -1,0 +1,102 @@
+{
+ "brand": {
+  "primary": "#0256C6",
+  "accent": "#007018",
+  "panel": "#042054",
+  "soft": "#DBE6FF",
+  "name": "JJBM\nLANDSCAPING & TREE",
+  "place": "ANSONIA · CONNECTICUT"
+ },
+ "ads": [
+  {
+   "name": "A-tree-removal",
+   "photo": "clients/jjbm/photos/jjbm-img-20251202-wa0052.jpg",
+   "focus": "center 25%",
+   "tag": "TREE REMOVAL · ANSONIA & SURROUNDING AREAS",
+   "headline": "Dangerous tree near your house?",
+   "headlineSize": 7.2,
+   "sub": "Hazardous tree cutting, removal and storm cleanup.",
+   "badge": "Free estimates"
+  },
+  {
+   "name": "B-crew",
+   "photo": "clients/jjbm/photos/jjbm-img-20251202-wa0163.jpg",
+   "focus": "center 45%",
+   "tag": "LANDSCAPING & TREE REMOVAL · CONNECTICUT",
+   "headline": "A fully insured crew.",
+   "headlineSize": 7.6,
+   "sub": "Over a decade of tree and landscape work across Connecticut.",
+   "badge": "Free estimates"
+  },
+  {
+   "name": "C-landscaping",
+   "photo": "clients/jjbm/photos/jjbm-img-20251225-wa0160.jpg",
+   "focus": "center 60%",
+   "tag": "LANDSCAPING · ANSONIA & SURROUNDING AREAS",
+   "headline": "Planting, mulch and hardscaping.",
+   "headlineSize": 7.2,
+   "sub": "Landscape design and installation, mulching, new planting, masonry and hardscaping.",
+   "badge": "Free estimates"
+  },
+  {
+   "name": "D-open-7-days",
+   "photo": "clients/jjbm/photos/jjbm-img-20251225-wa0161.jpg",
+   "focus": "center 55%",
+   "tag": "LANDSCAPING & TREE WORK · ANSONIA",
+   "big": "7am-8pm",
+   "bigSize": 13,
+   "big2": "7 days a week",
+   "sub": "Call or message for a free estimate.",
+   "badge": "Fully insured team"
+  }
+ ],
+ "carousel": {
+  "name": "F-carousel",
+  "swipe": "Swipe to see what we do →",
+  "cards": [
+   {
+    "role": "title",
+    "photo": "clients/jjbm/photos/jjbm-img-20251202-wa0034.jpg",
+    "focus": "center 30%",
+    "tag": "ANSONIA & SURROUNDING AREAS",
+    "headline": "Tree work to new lawns: one insured crew.",
+    "headlineSize": 6.6,
+    "sub": "Over a decade of tree and landscape work across Connecticut."
+   },
+   {
+    "photo": "clients/jjbm/photos/jjbm-img-20251202-wa0079.jpg",
+    "focus": "center 30%",
+    "tag": "TREE REMOVAL · ANSONIA",
+    "stepLabel": "TREE WORK",
+    "headline": "Tree removal and trimming.",
+    "sub": "Hazardous tree cutting and storm cleanup too."
+   },
+   {
+    "photo": "clients/jjbm/photos/jjbm-img-20251225-wa0138.jpg",
+    "focus": "center 50%",
+    "tag": "LAWN CARE · ANSONIA",
+    "stepLabel": "LAWNS",
+    "headline": "Leveling, regrading and new lawns.",
+    "headlineSize": 6.2,
+    "sub": "Sod or seed, plus regrading and drainage."
+   },
+   {
+    "photo": "clients/jjbm/photos/jjbm-img-20251225-wa0120.jpg",
+    "focus": "center 55%",
+    "tag": "LANDSCAPING · ANSONIA",
+    "stepLabel": "PLANTING",
+    "headline": "Mulching and new planting.",
+    "sub": "Landscape design and installation, spring cleanup."
+   },
+   {
+    "photo": "clients/jjbm/photos/jjbm-img-20251225-wa0168.jpg",
+    "focus": "center 55%",
+    "tag": "HARDSCAPING · ANSONIA",
+    "stepLabel": "HARDSCAPE",
+    "headline": "Masonry and hardscaping.",
+    "sub": "Open 7am to 8pm, 7 days a week.",
+    "badge": "Free estimates"
+   }
+  ]
+ }
+}

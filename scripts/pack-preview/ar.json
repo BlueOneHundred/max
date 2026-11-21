@@ -1,0 +1,22 @@
+{
+ "brand": {"primary":"#1B3A9E","accent":"#2E9B3E","panel":"#0A1842","soft":"#DBE6FF","name":"ADVANCED\nROOFING SERVICES","place":"PERTH · ROCKINGHAM"},
+ "ads": [
+  {"name":"A-before-after","photo":"IMG_0821.jpg","focus":{"square":"center 40%","tall":"center 40%","story":"center 30%","wide":"center 40%"},
+   "tag":"ROOF RESTORATION · PERTH & ROCKINGHAM",
+   "labels":[{"text":"BEFORE","side":"left","at":0.32},{"text":"AFTER","side":"right","at":0.32,"colour":"#2E9B3E"}],
+   "headline":"Same roof.","headlineSize":8.4,"sub":"Inspect. Repair. Clean. Seal and paint.","badge":"20-year workmanship guarantee"},
+  {"name":"B-guarantee","photo":"IMG_4663.jpg","focus":"center 35%","tag":"ROOF RESTORATIONS · PERTH & ROCKINGHAM",
+   "big":"20-YEAR","bigSize":15,"big2":"workmanship guarantee","sub":"+ 10-year manufacturer's warranty on Australian-made materials","badge":"Free, no-obligation quote"},
+  {"name":"C-owner","photo":"IMG_0816.jpg","focus":"center 40%","tag":"ROOF RESTORATIONS · PERTH & ROCKINGHAM",
+   "quote":"“We treat every roof like it’s our own.”","who":"Mick Gibbs, Owner · over 30 years in roofing","badge":"20-year workmanship guarantee"},
+  {"name":"D-review","photo":"IMG_4892.jpg","focus":"30% center","tag":"ROOF RESTORATION · ROCKINGHAM",
+   "quote":"“We’ve noticed a huge difference during the rain.”","who":"Marianne I., Rockingham · roof restoration","badge":"Free, no-obligation quote"}
+ ],
+ "carousel": {"name":"F-carousel","cards":[
+  {"role":"title","photo":"IMG_4292.jpg","focus":"center 60%","tag":"ROOF RESTORATION · PERTH & ROCKINGHAM","headline":"Every roof restoration, in 4 steps.","headlineSize":7.0,"sub":"The same process on every roof we restore."},
+  {"photo":"IMG_0164.jpg","focus":"center 50%","tag":"ROOF RESTORATION · PERTH & ROCKINGHAM","step":"1","stepLabel":"STEP 1 OF 4","headline":"Full roof inspection.","headlineSize":6.6,"sub":"Plus a damage assessment, before any work starts."},
+  {"photo":"IMG_0161.jpg","focus":"center 45%","tag":"ROOF RESTORATION · PERTH & ROCKINGHAM","step":"2","stepLabel":"STEP 2 OF 4","headline":"Repairs.","headlineSize":7.4,"sub":"Ridge caps, tiles and flashing fixed before anything is cleaned or painted."},
+  {"photo":"IMG_0174.jpg","focus":"center 55%","tag":"ROOF RESTORATION · PERTH & ROCKINGHAM","step":"3","stepLabel":"STEP 3 OF 4","headline":"High-pressure clean.","headlineSize":6.6,"sub":"Moss, dirt and debris removed."},
+  {"photo":"IMG_4663.jpg","focus":"center 45%","tag":"ROOF RESTORATION · PERTH & ROCKINGHAM","step":"4","stepLabel":"STEP 4 OF 4","headline":"Sealed and painted.","headlineSize":6.6,"sub":"Protective sealant and premium roof paint. Free, no-obligation quote.","badge":"20-year workmanship guarantee"}
+ ]}
+}
