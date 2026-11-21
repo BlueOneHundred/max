@@ -99,7 +99,7 @@ body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiase
 .wide .txt{right:auto;width:${px(wideWidth)}}
 .step{display:inline-flex;align-items:center;gap:${px(1.2 * u)};font-weight:800;letter-spacing:.12em;font-size:${px(1.9 * u)};color:${C.soft};margin-bottom:${px(1.4 * u)}}
 .step b{display:inline-flex;align-items:center;justify-content:center;width:${px(5.2 * u)};height:${px(5.2 * u)};border-radius:50%;background:${C.accent};color:${C.accentText};font-family:'Archivo Black';font-weight:400;font-size:${px(2.8 * u)};letter-spacing:0}
-.big{font-family:'Archivo Black';line-height:.9;letter-spacing:-.02em}
+.big{font-family:'Archivo Black';line-height:.9;letter-spacing:-.02em;white-space:nowrap}
 .big2{font-family:'Archivo Black';font-size:${px(4.6 * u)};line-height:1;margin-top:${px(0.6 * u)}}
 .h{font-family:'Archivo Black';line-height:1.04;letter-spacing:-.01em;text-wrap:balance}
 .q{font-family:'Archivo Black';line-height:1.08;text-wrap:balance}
