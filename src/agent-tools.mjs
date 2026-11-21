@@ -17,6 +17,7 @@ import {slideHtml,SLIDE_SCRIPT,HIDE_TEXT_CSS,contrastProblems,textProblems,carou
 import {readFile as readTeamBytes,readdir,mkdir,rename} from 'node:fs/promises';
 import {join} from 'node:path';
 import {registerMotionTools} from './motion-tools.mjs';
+import {registerPackTools} from './pack-tools.mjs';
 import {softResult} from './soft-results.mjs';
 import {runPackageCheck,ALL_SCOPES} from './package-check.mjs';
 import {ownToolResultPath,readToolResult,findInToolResult} from './tool-results.mjs';
@@ -230,6 +231,7 @@ export async function agentRuntime({bot,conversationId,files,cloud,connections,s
         const saved=await teamFolder.writeBytes(null,pdfPath,bytes);return text({path:pdfPath,pages:pdfPageCount(bytes),bytes:bytes.length,saved:Boolean(saved)});
       });
       registerMotionTools({register,text,teamFolder,connections,renderPage,renderFrames,cropToRatio,ledger:spendLedger,approve,signal,fetchImpl,wait});
+      registerPackTools({register,text,teamFolder,renderPage,renderFrames,shrinkImage,signal});
     }
   }
   if(capabilities.computer&&connections.status().cloud){

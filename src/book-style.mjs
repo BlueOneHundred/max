@@ -18,6 +18,10 @@ export const fonts = () => [
   face('Source Serif 4', 'source-serif-400', 400), face('Source Serif 4', 'source-serif-400-italic', 400, 'italic'),
   face('Source Serif 4', 'source-serif-600', 600), face('Source Serif 4', 'source-serif-600-italic', 600, 'italic'),
 ].join('');
+// Max build 2: the ad-pack fonts (Inter for words, Archivo Black for headlines), same OFL licence.
+export const packFonts = () => [
+  face('Inter', 'inter-600', 600), face('Inter', 'inter-700', 700), face('Inter', 'inter-800', 800), face('Archivo Black', 'archivo-black-400', 400),
+].join('');
 
 const svg = (inner, extra = '') => `<svg viewBox="0 0 24 24" ${extra}>${inner}</svg>`;
 export const ICONS = {
