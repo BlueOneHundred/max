@@ -1,4 +1,4 @@
-// Toby: Motion Studio tools (make_video_clip, make_sound, make_reel pieces). No network, no cost: fal and
+// Max: Motion Studio tools (make_video_clip, make_sound, make_reel pieces). No network, no cost: fal and
 // ElevenLabs are faked; ffmpeg is the bundled one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -92,7 +92,7 @@ test('credits log keeps the month total in Tavin\'s format', async () => {
   await rm(dir, {recursive: true, force: true});
 });
 
-test('fal queue: submit, wait, read the result with Toby\'s key; resume never pays twice', async () => {
+test('fal queue: submit, wait, read the result with Max\'s key; resume never pays twice', async () => {
   const calls = [];
   const fetchImpl = async (url, opts = {}) => { calls.push([opts.method || 'GET', url, opts.headers?.Authorization]); if (opts.method === 'POST') return Response.json({request_id: 'req1'});
     if (url.endsWith('/status')) return Response.json({status: calls.filter(c => c[1].endsWith('/status')).length > 1 ? 'COMPLETED' : 'IN_PROGRESS'}); return Response.json({video: {url: 'https://v3.fal.media/x.mp4'}}); };
@@ -102,7 +102,7 @@ test('fal queue: submit, wait, read the result with Toby\'s key; resume never pa
   assert.equal(calls[1][1], 'https://queue.fal.run/fal-ai/kling-video/requests/req1/status');
   calls.length = 0; await runFalQueue({endpoint: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video', input: {}, key: 'k', resume: 'req1', fetchImpl, wait: async () => {}});
   assert.equal(calls.filter(c => c[0] === 'POST').length, 0);
-  await assert.rejects(runFalQueue({endpoint: 'a/b', input: {}, key: 'bad', fetchImpl: async () => new Response('{}', {status: 401}), wait: async () => {}}), /refused Toby's key/);
+  await assert.rejects(runFalQueue({endpoint: 'a/b', input: {}, key: 'bad', fetchImpl: async () => new Response('{}', {status: 401}), wait: async () => {}}), /refused Max's key/);
 });
 
 test('make_video_clip: checks the cap, asks Tavin when over it, saves the clip, frames and the cost', async () => {

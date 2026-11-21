@@ -1,4 +1,4 @@
-// Toby: Instagram carousels made from a book's checked photos and real type (make_carousel).
+// Max: Instagram carousels made from a book's checked photos and real type (make_carousel).
 // No AI-drawn text: every word is set here in the book's fonts and palette. Two layouts, both
 // approved by Tavin on 16 Nov 2026 (Jane's samples):
 //   panel: the photo fills the top of the slide and fades into a solid colour panel with the words.
@@ -46,7 +46,7 @@ function panelCss(C) {
 .slide.dark{background:${C.deep}}
 .shade{position:absolute;left:0;right:0;bottom:0}
 .txt{position:absolute;left:72px;right:72px;bottom:96px;color:#fff}
-/* Toby build 36: the words always sit on the deep colour. A long cover title made the text block taller than the
+/* Max build 36: the words always sit on the deep colour. A long cover title made the text block taller than the
    fixed shade, so the kicker landed on the photo (Hillary's carousel A cover, 18 Nov 2026: 2:1 contrast). */
 .slide.dark .txt{z-index:2}
 .slide.dark .txt::before{content:'';position:absolute;left:-72px;right:-72px;top:-150px;bottom:-240px;background:linear-gradient(to bottom,${hexA(C.deep, 0)} 0px,${C.deep} 140px);z-index:-1;pointer-events:none}
@@ -111,7 +111,7 @@ export function slideHtml({slide, index, total, layout = 'panel', paletteName = 
 <div class="cta fit"><div class="t">${esc(slide.cta || 'Link in bio')}</div>${slide.body ? `<div class="s">${esc(slide.body)}</div>` : ''}</div></div>`);
   }
   if (slide.type === 'flag') {
-    // Toby build 35: the flag slide always sits on the deep colour. On the card layout's main colour the accent kicker
+    // Max build 35: the flag slide always sits on the deep colour. On the card layout's main colour the accent kicker
     // and source line fell below 4.5:1 (terracotta 4.4:1), so Bagel's and Erica's Safety note slides could never pass.
     const bg = C.deep;
     return page(css + `.slide.flagged{background:${bg}}`, `<div class="slide flagged">${top}
@@ -227,7 +227,7 @@ export function carouselToFix(results) {
       else if (p.kind === 'contrast') out.push(`${n}: "${p.text}" is hard to read (${p.ratio}:1, needs ${p.need}:1). Move the photo focus so the words sit on a calmer part, or use the other layout.`);
       else if (p.kind === 'widow') out.push(`${n}: "${p.word}" sits alone on the last line of "${p.text}". Shorten or reword that line so no word stands alone.`);
       else if (p.kind === 'image') out.push(`${n}: the picture did not load. Check the image path.`);
-      else if (p.kind === 'font') out.push(`${n}: the font ${p.text} did not load. Run make_carousel again; tell Toby if it repeats.`);
+      else if (p.kind === 'font') out.push(`${n}: the font ${p.text} did not load. Run make_carousel again; tell Max if it repeats.`);
     }
   });
   return out;
@@ -248,7 +248,7 @@ export function checkNote({title, layout, paletteName, results, toFix, textFix, 
   return lines.join('\n');
 }
 
-// Toby build 35: slide files a remade carousel no longer has (a 8-slide carousel remade with 7 leaves an old 08.jpg).
+// Max build 35: slide files a remade carousel no longer has (a 8-slide carousel remade with 7 leaves an old 08.jpg).
 // Returns the names to move out of the way, in order.
 export function staleSlides(names, count) {
   return names.filter(n => /^\d{2}\.jpg$/.test(n) && Number(n.slice(0, 2)) > count).sort();

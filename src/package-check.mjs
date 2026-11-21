@@ -1,4 +1,4 @@
-// Toby build 36: the automatic package check.
+// Max build 36: the automatic package check.
 // Claude checked every creator package by hand on 18 Nov 2026 and found faults the bots' own checks missed
 // (a "From" box quote that was not the creator's words, UK spelling in a US book, a caption that promised a
 // recipe the book does not hold, an email naming a chapter that holds none of the creator's boxes, quotes over

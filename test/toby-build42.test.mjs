@@ -1,4 +1,4 @@
-// Toby build 42: book types (care, recipe, project, routine). Made-up books only (test/fixtures/typed-books.mjs).
+// Max build 42: book types (care, recipe, project, routine). Made-up books only (test/fixtures/typed-books.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';

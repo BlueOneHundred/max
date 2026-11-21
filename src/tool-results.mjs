@@ -1,4 +1,4 @@
-// Toby build 34: a bot may read its OWN saved tool results.
+// Max build 34: a bot may read its OWN saved tool results.
 // When a tool answer is too big for the chat, the Claude Agent SDK saves it to
 //   <home>/.claude/projects/<the conversation's workspace folder, as a name>/<session>/tool-results/<id>.json|txt
 // and tells the bot to read that file. read_file only allowed paths inside the bot's workspace, so the bot got a red
@@ -24,7 +24,7 @@ export async function readToolResult(full,part=1){
   return {file:basename(full),part:n,parts,text:text.slice((n-1)*PART_CHARS,n*PART_CHARS),note:n<parts?`Part ${n} of ${parts}. Call read_file again with the same path and part ${n+1} for more.`:`Part ${n} of ${parts}: the end.`};
 }
 
-// Toby build 35: search a saved tool result for a word (bots have no Bash or grep). Returns the matching lines with
+// Max build 35: search a saved tool result for a word (bots have no Bash or grep). Returns the matching lines with
 // their line numbers, case-insensitive, at most 200 lines, each cut to 400 characters.
 export const FIND_MAX=200;
 export async function findInToolResult(full,find){

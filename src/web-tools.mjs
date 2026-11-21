@@ -4,7 +4,7 @@ import {DOMParser} from 'linkedom';
 
 export function publicAddress(address){const a=address.split('.').map(Number);return a.length===4&&a.every(n=>Number.isInteger(n)&&n>=0&&n<256)&&![0,10,127].includes(a[0])&&a[0]<224&&!(a[0]===169&&a[1]===254)&&!(a[0]===172&&a[1]>=16&&a[1]<=31)&&!(a[0]===192&&a[1]===168)&&!(a[0]===100&&a[1]>=64&&a[1]<=127);}
 export function publicURL(value){const url=new URL(value);if(url.protocol!=='https:'||url.username||url.password||(url.port&&url.port!=='443')||!url.hostname.includes('.')||/^(?:localhost|127\.|0\.|10\.|192\.168\.|169\.254\.)|\.(?:local|internal|localhost)$/i.test(url.hostname)||url.hostname.includes(':')){const error=new Error('Only public HTTPS webpages are allowed.');error.code='URL_BLOCKED';throw error;}return url;}
-// Toby: many sites refuse unknown readers, so identify as a normal desktop browser.
+// Max: many sites refuse unknown readers, so identify as a normal desktop browser.
 export const BROWSER_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
 async function fetchText(value,signal,redirects=0){
  const url=publicURL(value);if(redirects>5)throw new Error('Too many redirects.');
@@ -30,7 +30,7 @@ export function extractWebpage(response){
  return{url:response.url,title:doc.querySelector('title')?.textContent||'',text};
 }
 export async function readWebpage(url,signal){return extractWebpage(await fetchText(url,signal));}
-// Toby: download a public image so a bot can look at it (listing photos, current ads, brand logos).
+// Max: download a public image so a bot can look at it (listing photos, current ads, brand logos).
 const IMAGE_TYPES=new Set(['image/png','image/jpeg','image/webp','image/gif']);
 export async function fetchImage(value,signal,redirects=0,maxBytes=4500000){
  const url=publicURL(value);if(redirects>5)throw new Error('Too many redirects.');

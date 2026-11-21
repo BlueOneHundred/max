@@ -11,7 +11,7 @@ import { userPrompt } from './claude-backend.mjs';
 import { generateBotPrompt } from './auto-prompt.mjs';
 
 const COLORS = ['#496e57', '#806549', '#635f9a', '#397c89', '#a05765'];
-// Toby build 31: bot instructions may be up to 32,000 characters (Gratis: 16,000), so a bot's rules need not be cut to fit.
+// Max build 31: bot instructions may be up to 32,000 characters (Gratis: 16,000), so a bot's rules need not be cut to fit.
 export const INSTRUCTIONS_MAX = 32_000;
 const text = (value, label, max, allowEmpty = false) => {
   if (typeof value !== 'string' || value.length > max || (!allowEmpty && !value.trim())) throw new Error(`${label} must be ${allowEmpty ? '' : 'non-empty '}text under ${max} characters.`);

@@ -1,4 +1,4 @@
-// Toby: sound and video helpers built on the ffmpeg that ships inside Toby (ffmpeg-static, unpacked from the
+// Max: sound and video helpers built on the ffmpeg that ships inside Max (ffmpeg-static, unpacked from the
 // app archive so Windows can run it). Used by make_reel, make_video_clip and make_sound. Everything here works
 // on files in the team folder; nothing goes to the network.
 import {spawn} from 'node:child_process';
@@ -15,7 +15,7 @@ export function ffmpegPath() {
   if (!found) { try { found = require('ffmpeg-static') || ''; } catch { found = ''; } }
   // Inside the packaged app the binary is unpacked next to the archive (electron-builder asarUnpack).
   found = found.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
-  if (!found || !existsSync(found)) throw new Error('The video maker (ffmpeg) is missing from this Toby build.');
+  if (!found || !existsSync(found)) throw new Error('The video maker (ffmpeg) is missing from this Max build.');
   return (cached = found);
 }
 

@@ -29,7 +29,7 @@ export function validateTiming(value){
  if(!days.length||days.some(d=>!Number.isInteger(d)||d<0||d>6))throw new Error('Choose at least one day.');
  return{kind:'weekly',time:value.time,days,timezone};
 }
-// Toby build 44: extra is a Set of extra workdays (YYYY-MM-DD). A weekday schedule (every day Monday to Friday)
+// Max build 44: extra is a Set of extra workdays (YYYY-MM-DD). A weekday schedule (every day Monday to Friday)
 // fires on those dates too, at its usual time (board/extra-workdays.md, src/workdays.mjs).
 export const weekdaySchedule=timing=>timing?.kind==='weekly'&&[1,2,3,4,5].every(d=>timing.days.includes(d))&&timing.days.length<7;
 export function nextRun(timing,after,servedAt,extra){
@@ -46,7 +46,7 @@ export function nextRun(timing,after,servedAt,extra){
  for(let t=Math.floor(after/60000)*60000+60000,end=t+8*86400000;t<end;t+=60000){const p=Object.fromEntries(format.formatToParts(t).map(p=>[p.type,p.value]));if(localDate(t)!==servedDate&&localDate(t)!==skipToday&&(timing.days.includes(names.indexOf(p.weekday))||(extraOn&&extra.has(localDate(t))))&&`${p.hour}:${p.minute}`===timing.time)return t;}
  throw new Error('Could not determine the next scheduled time.');
 }
-// Toby build 40: a run that hit a run limit gets one short, fresh turn to save its work (19 Nov: Creator Partnerships
+// Max build 40: a run that hit a run limit gets one short, fresh turn to save its work (19 Nov: Creator Partnerships
 // reached 200 tool calls with nothing saved, so Tavin had no creators that morning).
 export const hitLimit=error=>/^Paused at the|^Paused after/i.test(String(error||''));
 export const WRAP_UP='Your scheduled run stopped at its run limit before it finished. Do NOT continue the job or start anything new. Using at most 10 tool calls, save what you already have now: write (or finish) your main file with everything you found so far, mark clearly what is missing, and add your run line saying the run hit its limit. Then stop. Don\'t ask questions.';
@@ -101,9 +101,9 @@ export class Schedules {
     const replies=c.messages.slice(index+1,end<0?undefined:end).filter(m=>m.role==='assistant');
     const failed=replies.find(m=>['error','cancelled'].includes(m.status));
     run.status=failed||!replies.length?'needs_review':'completed';run.finishedAt=this.now();
-    // Toby build 39: a run cut short by Toby closing or by a run limit is not a reason to switch the schedule off
+    // Max build 39: a run cut short by Max closing or by a run limit is not a reason to switch the schedule off
     // (on 18 Nov four schedules paused themselves this way and nobody saw it). It runs again at its next time,
-    // and a run line tells Toby's brief what happened. A run Tavin stopped himself still pauses its schedule.
+    // and a run line tells Max's brief what happened. A run Tavin stopped himself still pauses its schedule.
     if(run.status==='needs_review'&&cutShort(failed?.error)){run.status='interrupted';run.error=failed.error;void this.runLine(item,failed.error);if(hitLimit(failed.error)&&run.kind!=='wrapup')wrapups.push(item);}
     else if(run.status==='needs_review'){run.error=failed?.error||'No completed reply was recorded.';item.enabled=false;item.error='Review the last run, then resume this schedule.';}changed=true;
    }

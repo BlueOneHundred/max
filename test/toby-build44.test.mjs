@@ -72,9 +72,9 @@ async function team(files) {
   return root;
 }
 const READY = {'ebooks/test-bread/part-a.md': '# A\n', 'ebooks/test-bread/images/check.md': 'All pictures PASSED (3)\n', 'ebooks/test-bread/app/app-link.md': 'https://example.com/x\nLive when checked: yes\n'};
-const BOTS = ['Toby', 'Creator Partnerships', 'Creative Studio', 'Edition Writer', 'App Builder', 'Art Director', 'Marketing Kit', 'Visual Check', 'Outreach Writer', 'Ebook Builder'];
+const BOTS = ['Max', 'Creator Partnerships', 'Creative Studio', 'Edition Writer', 'App Builder', 'Art Director', 'Marketing Kit', 'Visual Check', 'Outreach Writer', 'Ebook Builder'];
 
-test('build 44: on an extra workday the auto-pick waits for the finished creators file, then starts the runs: ready-book creators first, then 1 new base book through Toby', async () => {
+test('build 44: on an extra workday the auto-pick waits for the finished creators file, then starts the runs: ready-book creators first, then 1 new base book through Max', async () => {
   const sat = '2026-01-10';
   const ranked = `# Creators ${sat}\n\n## Ranked list\n| rank | handle | niche | country | followers | score | parts | contact | fits an existing book? | rising? |\n|---|---|---|---|---|---|---|---|---|---|\n| 1 | @test.baker.one | sourdough and baking | USA | 10,000 | 82 | x | email: one@example.com | test-bread | no |\n| 2 | @test_baker_two | sourdough and baking | UK | 8,000 | 70 | x | DM only | no | no |\n| 3 | @test_knitter | crochet and knitting | Canada | 20,000 | 88 | x | DM only | no | no |\n| 4 | @test_baker_three | sourdough and baking | USA | 9,000 | 65 | x | DM only | test-bread | no |\n`;
   const root = await team({...READY, 'board/decisions-2026-01.md': '2026-01-09 I4 | for: X | instruction: y | status: decided | 10:00\n', 'creators/creators-log.csv': toCsv([]), 'pipeline/steps.json': JSON.stringify({steps: [{id: 'voice', bot: 'Creator Partnerships', task: 'voice', gates: [{file: 'creators/voice/{handle}.md'}]}, {id: 'review', review: true}]})});
@@ -93,8 +93,8 @@ test('build 44: on an extra workday the auto-pick waits for the finished creator
   await tick();
   assert.deepEqual(p.runs.map(r => [r.handle, r.base, r.contact, r.by]), [['test.baker.one', 'test-bread', 'email', 'auto'], ['test_baker_three', 'test-bread', 'dm', 'auto']]);
   const decisions = await readFile(join(root, 'board/decisions-2026-01.md'), 'utf8');
-  assert.match(decisions, /I5 \| for: .*PACKAGE RUN for @test\.baker\.one on base book test-bread \(picked by the Toby app's daily auto-pick under Tavin's standing rule, 07:3\d\)/);
-  assert.equal(service.delivered.filter(d => d.bot === 'Toby').length, 0, 'two ready-book creators: no new base book today');
+  assert.match(decisions, /I5 \| for: .*PACKAGE RUN for @test\.baker\.one on base book test-bread \(picked by the Max app's daily auto-pick under Tavin's standing rule, 07:3\d\)/);
+  assert.equal(service.delivered.filter(d => d.bot === 'Max').length, 0, 'two ready-book creators: no new base book today');
   const report = await readFile(join(root, `pipeline/auto-pick-${sat}.md`), 'utf8');
   assert.match(report, /@test_baker_two: no ready base book; today's 2 are already picked/);
   assert.match(report, /Picked: @test\.baker\.one, @test_baker_three/);
@@ -103,7 +103,7 @@ test('build 44: on an extra workday the auto-pick waits for the finished creator
   assert.match(runs, /\| Package runs \| done: auto-pick: @test\.baker\.one/);
   // Once a day only.
   const count = service.delivered.length; await tick(); await tick();
-  assert.equal(p.runs.length, 2); assert.equal(service.delivered.filter(d => d.bot === 'Toby').length, 0); assert.ok(service.delivered.length >= count);
+  assert.equal(p.runs.length, 2); assert.equal(service.delivered.filter(d => d.bot === 'Max').length, 0); assert.ok(service.delivered.length >= count);
   const settings = JSON.parse(await readFile(join(root, 'pipeline/auto-pick.json'), 'utf8'));
   assert.equal(settings.enabled, true); assert.equal(settings.perDay, 2);
 });
@@ -116,7 +116,7 @@ test('build 44: the auto-pick can be switched off in pipeline/auto-pick.json', a
   assert.equal(p.runs.length, 0);
 });
 
-test('build 44: with one ready-book creator, the auto-pick asks Toby for one new base book, and waits while Toby is busy', async () => {
+test('build 44: with one ready-book creator, the auto-pick asks Max for one new base book, and waits while Max is busy', async () => {
   const day = '2026-01-12';
   const ranked = `## Ranked list\n| rank | handle | niche | country | followers | score | p | contact | fits an existing book? | r |\n|---|---|---|---|---|---|---|---|---|---|\n| 1 | @test_one | sourdough and baking | USA | 1,000 | 75 | x | DM only | test-bread | no |\n| 2 | @test_knitter | crochet and knitting | Canada | 20,000 | 88 | x | email: k@example.com | no | no |\n\nStatus: done\n`;
   const root = await team({...READY, [`creators/${day}.md`]: ranked, 'creators/creators-log.csv': toCsv([]), 'pipeline/steps.json': JSON.stringify({steps: [{id: 'voice', bot: 'Creator Partnerships', task: 'voice', gates: [{file: 'creators/voice/{handle}.md'}]}, {id: 'review', review: true}]})});
@@ -127,16 +127,16 @@ test('build 44: with one ready-book creator, the auto-pick asks Toby for one new
   const tick = async () => { now += 61000; p.lastAuto = 0; await p.autoPick(); };
   await tick();
   assert.deepEqual(p.runs.map(r => r.handle), ['test_one']);
-  assert.equal(service.delivered.filter(d => d.bot === 'Toby').length, 0);
-  assert.match(await readFile(join(root, `pipeline/auto-pick-${day}.md`), 'utf8'), /waiting: Toby is busy/);
+  assert.equal(service.delivered.filter(d => d.bot === 'Max').length, 0);
+  assert.match(await readFile(join(root, `pipeline/auto-pick-${day}.md`), 'utf8'), /waiting: Max is busy/);
   tobyBusy = false; await tick();
-  const asks = service.delivered.filter(d => d.bot === 'Toby');
+  const asks = service.delivered.filter(d => d.bot === 'Max');
   assert.equal(asks.length, 1); assert.match(asks[0].input, /@test_knitter/); assert.match(asks[0].input, /handle "test_knitter" and contact "email"/); assert.match(asks[0].input, /start_book_run/);
-  await tick(); assert.equal(service.delivered.filter(d => d.bot === 'Toby').length, 1);
+  await tick(); assert.equal(service.delivered.filter(d => d.bot === 'Max').length, 1);
   // A restart keeps the day's state: nothing is picked twice.
   const again = await new Pipelines({directory: data, teamRoot: root, teamFolder: new TeamFolder(root), service, busy: () => false, now: () => now}).init();
-  await again.autoPick(); assert.equal(again.runs.length, 1); assert.equal(service.delivered.filter(d => d.bot === 'Toby').length, 1);
-  assert.match(await readFile(join(root, `pipeline/auto-pick-${day}.md`), 'utf8'), /\| @test_knitter \| new base book first \(Toby starts the book run\) \| asked Toby at/);
+  await again.autoPick(); assert.equal(again.runs.length, 1); assert.equal(service.delivered.filter(d => d.bot === 'Max').length, 1);
+  assert.match(await readFile(join(root, `pipeline/auto-pick-${day}.md`), 'utf8'), /\| @test_knitter \| new base book first \(Max starts the book run\) \| asked Max at/);
 });
 
 import {Schedules} from '../src/schedules.mjs';
@@ -155,9 +155,9 @@ test('build 44: when board/extra-workdays.md appears, a weekday schedule moves i
 
 import {openCaptionChanges, BOOK_STEPS} from '../src/pipeline.mjs';
 test('build 44: a book run gets an Art Director caption step only when Visual Check left open caption changes', async () => {
-  const pics = '# Pictures\n\n## Caption changes (Visual Check)\nIntro line.\n- DONE (Art Director, 2026-01-10): images/a.jpg caption fixed\n- images/b.jpg (part-b.md). Caption now: "x". True caption: "y".\n\n## Caption changes (Visual Check): DONE (Art Director)\n- images/c.jpg old note\n\n## For Toby\n- nothing\n';
+  const pics = '# Pictures\n\n## Caption changes (Visual Check)\nIntro line.\n- DONE (Art Director, 2026-01-10): images/a.jpg caption fixed\n- images/b.jpg (part-b.md). Caption now: "x". True caption: "y".\n\n## Caption changes (Visual Check): DONE (Art Director)\n- images/c.jpg old note\n\n## For Max\n- nothing\n';
   assert.deepEqual(openCaptionChanges(pics), ['- images/b.jpg (part-b.md). Caption now: "x". True caption: "y".']);
-  assert.deepEqual(openCaptionChanges('# P\n\n## For Toby\n- x\n'), []);
+  assert.deepEqual(openCaptionChanges('# P\n\n## For Max\n- x\n'), []);
   const ids = BOOK_STEPS.steps.map(s => s.id);
   assert.deepEqual(ids.slice(ids.indexOf('picture-check'), ids.indexOf('rebuild') + 1), ['picture-check', 'captions', 'rebuild']);
   const root = await team({...READY, 'ebooks/test-bread/pictures.md': pics});
@@ -183,7 +183,7 @@ test('build 44: decisions archiving moves finished lines older than 7 days and k
   assert.equal(out.moved, 3);
   assert.match(out.archive, /old job[\s\S]*old question[\s\S]*D1 \| answer: yes/);
   assert.doesNotMatch(out.live, /old job|old question|D1 \| answer/);
-  assert.match(out.live, /^> Archive note \(Toby app\): .*board\/archive\/decisions-2026-01\.md.*Standing rules always stay here: D7, I2\. .*the next new ones are D3 and I5\.\n\n2026-01-01 I2/);
+  assert.match(out.live, /^> Archive note \(Max app\): .*board\/archive\/decisions-2026-01\.md.*Standing rules always stay here: D7, I2\. .*the next new ones are D3 and I5\.\n\n2026-01-01 I2/);
   for (const keep of ['OUTREACH PAUSED', 'still open', 'keep me', 'recent']) assert.match(out.live, new RegExp(keep));
   // Running again moves nothing more and keeps one note.
   const again = splitDecisions({text: out.live, archiveText: out.archive, today: '2026-01-12', month: '2026-01', standing: parseStanding('I2 D7')});
@@ -209,7 +209,7 @@ test('build 44: the app archives the decisions file at night and numbers new lin
 });
 
 import {readdirSync, readFileSync} from 'node:fs';
-test('build 44: nothing on screen or in the bots\' tools says Mac (Toby runs on Windows, and later on a server)', () => {
+test('build 44: nothing on screen or in the bots\' tools says Mac (Max runs on Windows, and later on a server)', () => {
   const dir = new URL('../src/', import.meta.url), hits = [];
   for (const name of readdirSync(dir)) {
     if (!/\.(mjs|html|cjs)$/.test(name)) continue;

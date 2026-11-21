@@ -1,5 +1,5 @@
-// Toby: one shared folder that every bot with Files enabled can read and write,
-// so the team can pass work through a common board (Desktop\Toby\Income by default).
+// Max: one shared folder that every bot with Files enabled can read and write,
+// so the team can pass work through a common board (Desktop\Max\Team by default).
 // It reuses the private-workspace safety rules: relative paths only, no dot
 // segments, no symlinks, size limits, and one write at a time across all bots.
 import {WorkspaceFiles} from './workspace-files.mjs';
@@ -13,7 +13,7 @@ export class TeamFolder extends WorkspaceFiles {
   serialize(_botId,fn){return super.serialize(KEY,fn);}
   async target(_botId,path='.',writing=false){return super.target(KEY,path,writing);}
   async usage(){return super.usage(KEY);}
-  async reserve(_botId,addedBytes,addedFiles){const current=await this.usage();if(current.bytes+addedBytes>this.maxBytes||current.count+addedFiles>this.maxFiles)throw new Error('The team folder limit is reached (2 GB or 10,000 files). Ask Tavin to archive old files to Google Drive (TOBY > 09 Archive).');}
+  async reserve(_botId,addedBytes,addedFiles){const current=await this.usage();if(current.bytes+addedBytes>this.maxBytes||current.count+addedFiles>this.maxFiles)throw new Error('The team folder limit is reached (2 GB or 10,000 files). Ask Tavin to archive old files to Google Drive (the Max Drive folder).');}
   // Add text to the end of a file (creates it if missing). Safer than rewriting a shared log.
   async append(path,content){return this.serialize(KEY,async()=>{if(typeof content!=='string'||!content.length)throw new Error('Add some text.');const target=await this.target(KEY,path,true),old=await lstat(target).catch(e=>{if(e.code==='ENOENT')return null;throw e;});if(old&&!old.isFile())throw new Error('Choose a file path.');const previous=old?await readFile(target):Buffer.alloc(0),gap=startsOwnLine(path,previous,content)?'\n':'',next=Buffer.concat([previous,Buffer.from(gap+content)]);if(next.length>200000)throw new Error('Files must contain at most 200 KB of text. Start a new file, for example one per day or week.');await this.reserve(KEY,next.length-previous.length,old?0:1);await mkdir(resolve(target,'..'),{recursive:true});await atomicWrite(target,next);return {path,bytes:next.length};});}
 }

@@ -1,4 +1,4 @@
-// Toby: read which page each named link target lands on in a PDF made by Chromium's printer.
+// Max: read which page each named link target lands on in a PDF made by Chromium's printer.
 // make_book prints twice: once to learn the page numbers, then again with them in the contents page.
 // Chromium (Skia) writes the page tree and the named destinations as plain, uncompressed objects.
 // Where each named target lands: its page and its distance from the foot of the page, in points.

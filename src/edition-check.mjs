@@ -1,4 +1,4 @@
-// Toby: checks a creator edition against the base book it was made from. Two questions, answered by counting:
+// Max: checks a creator edition against the base book it was made from. Two questions, answered by counting:
 // 1. Voice: was the running text really rewritten, in every chapter, or is it the base book with a new cover?
 // 2. Safety: did every number, source tag, table and chapter survive the rewrite, with nothing new slipped in?
 const norm = (s) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
@@ -14,7 +14,7 @@ const tagsIn = (s) => [...s.matchAll(/\[S[\d,\sS]+\]/g)].flatMap((m) => [...m[0]
 const numbersIn = (s) => [...s.replace(/\[S[\d,\sS]+\]/g, ' ').replace(/^\s*(>\s*)?\d+\.\s/, ' ').matchAll(/\d+(?:[.,]\d+)*%?/g)].map((m) => m[0].replace(/,/g, ''));
 const count = (list) => { const m = new Map(); for (const v of list) m.set(v, (m.get(v) || 0) + 1); return m; };
 /** Split Markdown parts into sections ("## ..."), each with its lines sorted by kind. */
-// Toby build 42: in a typed book (plan.md "Type: ..."), recipe, project and week cards hold data (amounts, materials,
+// Max build 42: in a typed book (plan.md "Type: ..."), recipe, project and week cards hold data (amounts, materials,
 // steps, days) that is kept rather than rewritten: their lines are counted per card instead of as box text.
 const CARDS = /^(recipe|project|this week)$/i;
 export function sections(parts, typed = false) {

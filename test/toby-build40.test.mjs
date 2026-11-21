@@ -15,7 +15,7 @@ const encrypt = s => Buffer.from(s).map(b => b ^ 42), decrypt = b => Buffer.from
 const timing = {kind: 'weekly', time: '07:00', days: [1, 2, 3, 4, 5], timezone: 'Asia/Ho_Chi_Minh'};
 async function team(files) { const root = await mkdtemp(join(tmpdir(), 'toby-b40-')); for (const [p, b] of Object.entries(files)) { await mkdir(dirname(join(root, p)), {recursive: true}); await writeFile(join(root, p), b); } return root; }
 
-test('Toby build 40: a scheduled run that hits its run limit gets one turn to save its work, and only one', async t => {
+test('Max build 40: a scheduled run that hits its run limit gets one turn to save its work, and only one', async t => {
   const dir = await mkdtemp(join(tmpdir(), 'toby-b40s-')); let now = Date.parse('2026-11-19T00:00Z');
   const seen = [];
   const service = new ChatService({dataDir: dir, backend: async function* ({messages}) { seen.push(messages.at(-1).content); yield 'Saved'; }}); await service.init();
@@ -34,7 +34,7 @@ test('Toby build 40: a scheduled run that hits its run limit gets one turn to sa
   const again = service._conversation(chat).messages.at(-1); again.status = 'cancelled'; again.error = 'Paused at the tool-call limit. Partial work is saved.';
   await s.tick(); await service.whenIdle(); await s.tick();
   row = s.get(item.id, chat); assert.equal(row.runs.length, 2); assert.equal(row.runs[1].status, 'interrupted');
-  assert.equal(hitLimit('Response interrupted when the app closed.'), false, 'closing Toby does not get a save turn');
+  assert.equal(hitLimit('Response interrupted when the app closed.'), false, 'closing Max does not get a save turn');
 });
 
 const fake = names => {
@@ -42,7 +42,7 @@ const fake = names => {
   return {state, delivered: [], async _deliver(c, input) { c.messages.push({id: 'm' + Math.random(), role: 'user', content: input, status: 'complete', createdAt: Date.now()}); this.delivered.push(input); }};
 };
 
-test('Toby build 40: no finished creator list by 08:15 on a weekday means one second try, ready-book creators first', async () => {
+test('Max build 40: no finished creator list by 08:15 on a weekday means one second try, ready-book creators first', async () => {
   const root = await team({'creators/2026-11-19.md': '# Creators, 2026-11-19\nStatus: in progress\n'});
   const data = await mkdtemp(join(tmpdir(), 'toby-b40d-'));
   let now = new Date(2026, 10, 19, 8, 0).getTime();
@@ -68,7 +68,7 @@ test('Toby build 40: no finished creator list by 08:15 on a weekday means one se
   } finally { await rm(root, {recursive: true, force: true}); await rm(data, {recursive: true, force: true}); }
 });
 
-test('Toby build 40: a package for a near miss fills her row from the creators file', async () => {
+test('Max build 40: a package for a near miss fills her row from the creators file', async () => {
   const root = await team({'creators/2026-11-19.md': '# Creators\n\n## Near misses\n| handle | niche | followers | gate failed or score | evidence |\n|---|---|---|---|---|\n| @testbaker (Test Baker) | sourdough | 202,251 | G1 unclear (would score about 85) | No country. Email TestBaker@example.com |\n'});
   try {
     const log = new CreatorLog({teamRoot: root, teamFolder: new TeamFolder(root), now: () => new Date(2026, 10, 19, 8, 26).getTime()});
@@ -79,7 +79,7 @@ test('Toby build 40: a package for a near miss fills her row from the creators f
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 
-test('Toby build 40: on a long title the sources seal moves up onto the photo', () => {
+test('Max build 40: on a long title the sources seal moves up onto the photo', () => {
   const parts = ['## Chapter 1: One\n\nText.\n', '## Chapter 2: Two\n\nText.\n'];
   const long = buildBook({title: 'Bread Without the Long Waiting', badge: 'Built from 42 trusted sources', parts}).html;
   const short = buildBook({title: 'Bread Book', badge: 'Built from 42 trusted sources', parts}).html;
@@ -87,7 +87,7 @@ test('Toby build 40: on a long title the sources seal moves up onto the photo', 
   assert.match(long, /\.seal\.high\{top:calc\(57% - 42mm\)\}/);
 });
 
-test('Toby build 41: run lines get the real time; other files and other lines are left alone', async () => {
+test('Max build 41: run lines get the real time; other files and other lines are left alone', async () => {
   const {stampRunLines, localTimeLine, clockNow} = await import('../src/claude-backend.mjs');
   assert.equal(stampRunLines('board/runs-2026-11-19.md', '~08:40 | Creator Partnerships | done: x | cost: $0.04 | problems: none\n', '08:08'), '08:08 | Creator Partnerships | done: x | cost: $0.04 | problems: none\n');
   assert.equal(stampRunLines('board\\runs-2026-11-19.md', '09:40 | Visual Check | done: y', '09:12'), '09:12 | Visual Check | done: y');

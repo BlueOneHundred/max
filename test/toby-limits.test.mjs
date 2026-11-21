@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {ChatService, INSTRUCTIONS_MAX} from '../src/chat-service.mjs';
 
-test('Toby build 31: bot instructions up to 32,000 characters, and no more', async t => {
+test('Max build 31: bot instructions up to 32,000 characters, and no more', async t => {
   assert.equal(INSTRUCTIONS_MAX, 32000);
   const dataDir = await mkdtemp(join(tmpdir(), 'toby-limits-'));
   const service = new ChatService({dataDir}); await service.init();
@@ -23,7 +23,7 @@ test('Toby build 31: bot instructions up to 32,000 characters, and no more', asy
   await reopened.close();
 });
 
-test('Toby build 31: the bot settings box takes 32,000 characters', async () => {
+test('Max build 31: the bot settings box takes 32,000 characters', async () => {
   const html = await readFile(new URL('../src/index.html', import.meta.url), 'utf8');
   assert.match(html, /<textarea id="bot-system" maxlength="32000"/);
 });

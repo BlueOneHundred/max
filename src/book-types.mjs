@@ -1,4 +1,4 @@
-// Toby build 42: book types. Every book keeps the shared core (cover, contents, The short version, Remember, Tip,
+// Max build 42: book types. Every book keeps the shared core (cover, contents, The short version, Remember, Tip,
 // From boxes, Facts, Steps, Checklist, tables, Sources). A base book's plan.md may also say what type of book it is:
 //   Type: care | recipe | project | routine
 // The type adds its own blocks and app tabs, and make_book checks the book against it. A book with no Type line is
@@ -53,7 +53,7 @@ export function typeNotes(t, found) {
   const out = [];
   if (t.error) { out.push(t.error); return out; }
   if (!t.type) return out;
-  if (t.confirm) out.push(`plan.md says "Type: ${t.value}". Tavin has not confirmed this book type yet. Stop, ask Toby to raise it with Tavin, and build nothing more until the line says just "Type: ${t.type}".`);
+  if (t.confirm) out.push(`plan.md says "Type: ${t.value}". Tavin has not confirmed this book type yet. Stop, ask Max to raise it with Tavin, and build nothing more until the line says just "Type: ${t.type}".`);
   const where = list => [...new Set(list)].join(', ');
   if (t.type === 'recipe' && !found.recipe) out.push('This is a recipe book (Type: recipe) but it has no recipe card. Write each recipe as a "> Recipe: <name>" block: a line of "Makes: ... | Prep: ... | Cook: ... | Keeps: ...", then the ingredients as "- name | grams | cups" lines, then the method as numbered steps.');
   if (t.type === 'project' && !found.project) out.push('This is a project book (Type: project) but it has no project card. Write each project as a "> Project: <name>" block: a line of "Difficulty: 1 to 5 | Time: ...", then the materials as "- item | which one" lines, then the steps as numbered steps.');

@@ -12,7 +12,7 @@ const runtimeFor=(bot,files,teamFolder)=>agentRuntime({bot,conversationId:random
 const call=async(rt,name,input={})=>{const d=rt.definitions.find(d=>d.name===name);assert.ok(d,'missing tool '+name);const r=await d.handler(input);assert.ok(!r.isError,JSON.stringify(r));return r.content[0].text;};
 test('two bots share the team folder while private Files stay separate',async t=>{
  const dir=await temp(t),files=new WorkspaceFiles(join(dir,'data')),team=new TeamFolder(join(dir,'Income'));
- const planner={id:randomUUID(),name:'Daily Planner',capabilities:{web:false,computer:false,connections:false}},toby={id:randomUUID(),name:'Toby',capabilities:{web:false,computer:false,connections:false}};
+ const planner={id:randomUUID(),name:'Daily Planner',capabilities:{web:false,computer:false,connections:false}},toby={id:randomUUID(),name:'Max',capabilities:{web:false,computer:false,connections:false}};
  const a=await runtimeFor(planner,files,team),b=await runtimeFor(toby,files,team);
  assert.equal(a.teamFolder,true);
  await call(a,'write_team_file',{path:'board/today.md',content:'# Plan\n'});

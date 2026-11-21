@@ -79,7 +79,7 @@ test('make_app and publish_app: build, check note, refuse a failed app, then pub
  const again=await call('publish_app',{appDir:'ebooks/puppy/editions/sam/app',name:'other-name'});assert.equal(again.folder,pub.folder);
  assert.match((await call('make_app',{...args,bookDir:'ebooks/nope'})).error,/Not found in the team folder/);
 });
-test('the new team members have a place in the sidebar order',()=>{for(const n of ['Edition Writer','App Builder','Store Manager','Marketing Kit'])assert.ok(TEAM_ORDER.includes(n));assert.ok(TEAM_ORDER.indexOf('App Builder')<TEAM_ORDER.indexOf('Outreach Writer'));});
+test('Max\'s team has its place in the sidebar order',()=>{assert.equal(TEAM_ORDER[0],'Max');for(const n of ['Lead Finder','Fact Finder','Ad Writer','Facebook Bot','Instagram Bot','TikTok Bot','LinkedIn Bot','X Bot','Rule Checker','Visual Check','Page Builder','Outreach Writer'])assert.ok(TEAM_ORDER.includes(n));assert.ok(TEAM_ORDER.indexOf('Ad Writer')<TEAM_ORDER.indexOf('Facebook Bot'));assert.ok(TEAM_ORDER.indexOf('X Bot')<TEAM_ORDER.indexOf('Rule Checker'));});
 test('a save that Windows briefly refuses is tried again instead of being lost',async()=>{
  const {steadyRename}=await import('../src/storage-safety.mjs');let calls=0;const waits=[];
  const busy=async()=>{if(++calls<4)throw Object.assign(new Error('EPERM: operation not permitted, rename'),{code:'EPERM'});return 'moved';};

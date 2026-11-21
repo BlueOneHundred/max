@@ -1,4 +1,4 @@
-// Toby build 44: decisions archiving (Tavin, D10, 20 Nov 2026: no second decisions file; archive instead).
+// Max build 44: decisions archiving (Tavin, D10, 20 Nov 2026: no second decisions file; archive instead).
 // board/decisions-<month>.md grew past 80 KB, too big for several bots to read. Each night, once the file is over
 // about 50 KB, finished lines older than 7 days move to board/archive/decisions-<month>.md:
 // - an I line (instruction) that is not a standing rule;
@@ -9,7 +9,7 @@
 // so numbering carries on across both files. Package and book runs number from both files too.
 export const STANDING_FILE = 'board/archive/standing.md';
 export const DEFAULT_STANDING = ['I11', 'I18', 'I36', 'I41', 'I60', 'I70', 'D3', 'D7'];
-export const NOTE_START = '> Archive note (Toby app):';
+export const NOTE_START = '> Archive note (Max app):';
 const LINE = /^(\d{4}-\d{2}-\d{2}) ([DI])(\d+) \|/;
 const daysBetween = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000);
 
@@ -47,6 +47,6 @@ export function splitDecisions({text, archiveText = '', today, month, standing =
   const max = highest([...lines, archiveText].join('\n')), am = highest(archiveText);
   max.D = Math.max(max.D, am.D); max.I = Math.max(max.I, am.I);
   const live = archiveNote({month, standing, max}) + '\n\n' + keep.join('\n').replace(/\n*$/, '\n');
-  const archive = moved.length ? (archiveText ? archiveText.replace(/\n*$/, '\n') : `# Decisions archive, ${month}\n\nFinished lines moved here from board/decisions-${month}.md by the Toby app, more than 7 days after they were written. Nothing here is waiting. Standing rules stay in the live file.\n\n`) + moved.join('\n') + '\n' : archiveText;
+  const archive = moved.length ? (archiveText ? archiveText.replace(/\n*$/, '\n') : `# Decisions archive, ${month}\n\nFinished lines moved here from board/decisions-${month}.md by the Max app, more than 7 days after they were written. Nothing here is waiting. Standing rules stay in the live file.\n\n`) + moved.join('\n') + '\n' : archiveText;
   return {live, archive, moved: moved.length, max};
 }

@@ -1,6 +1,6 @@
-# Toby: builds the Windows installer and publishes it as a GitHub Release in this repository.
-# Run it from the Actions tab: "Build Toby for Windows" -> "Run workflow".
-name: Build Toby for Windows
+# Max: builds the Windows installer and publishes it as a GitHub Release in this repository.
+# Run it from the Actions tab: "Build Max for Windows" -> "Run workflow".
+name: Build Max for Windows
 on:
   workflow_dispatch:
 permissions:
@@ -28,7 +28,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p 'require("./package.json").version')
-          TAG="toby-v${VERSION}-build${GITHUB_RUN_NUMBER}"
+          TAG="max-v${VERSION}-build${GITHUB_RUN_NUMBER}"
           cd dist
           sha256sum *.exe > SHA256SUMS.txt
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Toby ${VERSION} (build ${GITHUB_RUN_NUMBER})" --notes "Windows installer for Toby, built from Gratis community ${VERSION}. Unsigned: Windows SmartScreen will ask you to click More info, then Run anyway." ./*.exe SHA256SUMS.txt
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Max ${VERSION} (build ${GITHUB_RUN_NUMBER})" --notes "Windows installer for Max, built from Gratis community ${VERSION}. Unsigned: Windows SmartScreen will ask you to click More info, then Run anyway." ./*.exe SHA256SUMS.txt

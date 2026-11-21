@@ -1,4 +1,4 @@
-// Toby: proves make_reel works inside the packaged app (run by release-smoke.mjs on the Windows build):
+// Max: proves make_reel works inside the packaged app (run by release-smoke.mjs on the Windows build):
 // the bundled ffmpeg is unpacked and runs, Electron draws the reel offscreen frame by frame, the sound is
 // mixed to about -14 LUFS and both MP4s and the contact sheet are written. Synthetic files only.
 import {launchTestApp} from './electron-fixture.mjs';

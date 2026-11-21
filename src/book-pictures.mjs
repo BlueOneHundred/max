@@ -1,4 +1,4 @@
-// Toby: pictures inside a book and its app.
+// Max: pictures inside a book and its app.
 // In the Markdown a picture is a line on its own: ![What it shows](images/ch2-starter.jpg "Caption under the picture")
 // The path is read from the book's own folder (the folder of the first part), or from the team folder when it
 // starts with "ebooks/". PNG, JPEG and WebP photos are built into the file; SVG diagrams are set inline, so they

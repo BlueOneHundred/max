@@ -1,4 +1,4 @@
-// Toby build 44: extra workdays. The team works Monday to Friday. A date listed in board/extra-workdays.md in the
+// Max build 44: extra workdays. The team works Monday to Friday. A date listed in board/extra-workdays.md in the
 // team folder (one date per line, YYYY-MM-DD, e.g. "- 2026-11-21 weekend test") counts as a workday too: weekday
 // schedules fire, the creators safety net works and the auto-pick runs. When the date has passed, nothing changes.
 // First used for the weekend test of 21 and 22 Nov 2026, so build 44 could be tried before Monday.

@@ -1,4 +1,4 @@
-// Toby: the house style for ebooks made by make_book.
+// Max: the house style for ebooks made by make_book.
 // One design, used for every book: pine green and marigold, Outfit for display and tools,
 // Source Serif 4 for reading. Reading text sits in a narrower column; headings, tools and
 // tables hang out to the left margin, and step numbers and times sit in that margin.
@@ -28,7 +28,7 @@ export const ICONS = {
   flag: svg('<path d="M6 21V4M6 4.5h11l-2.5 4 2.5 4H6"/>'),
   bulb: svg('<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>'),
   paw: svg('<circle cx="7" cy="10" r="1.8"/><circle cx="17" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><path d="M12 12.5c-3 0-5.5 3-5.5 5.2 0 1.6 1.4 2.3 3 2.3 1 0 1.6-.4 2.5-.4s1.5.4 2.5.4c1.6 0 3-.7 3-2.3 0-2.2-2.5-5.2-5.5-5.2z"/>'),
-  // Toby build 35: niche-neutral icons. The paw (from the puppy book) was on every "From" box and "Did you know?"
+  // Max build 35: niche-neutral icons. The paw (from the puppy book) was on every "From" box and "Did you know?"
   // card in every book, including the sourdough books. quote = the creator's own words; spark = a fact.
   quote: svg('<path d="M10 7.5C7.2 8.4 5.5 10.6 5.5 13.6v3.4h5v-5H8c0-1.8 1-3 2.6-3.6zM18.5 7.5c-2.8.9-4.5 3.1-4.5 6.1v3.4h5v-5h-2.5c0-1.8 1-3 2.6-3.6z"/>'),
   spark: svg('<path d="M12 3.5l1.9 5.6 5.6 1.9-5.6 1.9L12 18.5l-1.9-5.6L4.5 11l5.6-1.9z"/><circle cx="18.5" cy="18" r="1.4"/><circle cx="5.5" cy="5" r="1.1"/>'),
@@ -37,8 +37,8 @@ export const ICONS = {
 
 const cssString = value => String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ');
 
-// Toby build 42: styles for typed books only, so a book with no type gets exactly the stylesheet it had before.
-const typedCSS = P => `/* Toby build 42: blocks for typed books (recipe and project cards, the week grid, troubleshooting tables) */
+// Max build 42: styles for typed books only, so a book with no type gets exactly the stylesheet it had before.
+const typedCSS = P => `/* Max build 42: blocks for typed books (recipe and project cards, the week grid, troubleshooting tables) */
 .rcard{margin:5.5mm 0 6.5mm calc(-1 * var(--gutter));border:1pt solid var(--pine);border-radius:3.5mm;overflow:hidden;break-inside:avoid;font-family:var(--display)}
 .rcard.long{break-inside:auto}
 .rc-head{background:var(--pine);color:#fff;padding:3.6mm 5.5mm 3.4mm;break-after:avoid}

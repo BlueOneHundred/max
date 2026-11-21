@@ -1,4 +1,4 @@
-// Toby: assemble a designed, print-ready ebook from Markdown parts in the team folder.
+// Max: assemble a designed, print-ready ebook from Markdown parts in the team folder.
 // Bots write chapters as Markdown with a few labelled blocks; this turns them into one
 // self-contained HTML book in the house style (book-style.mjs): cover, title page, contents,
 // full-page chapter openers, reading pages with tools, pages to print, a closing page and sources.
@@ -47,7 +47,7 @@ export function smartQuotes(html) {
 const BOXES = {'the short version': 'short', 'try tonight': 'try', 'try this': 'try', 'remember': 'remember', 'safety note': 'safety', 'red flag': 'red', 'tip': 'tip'};
 const VISUAL = {fact: 'facts', facts: 'facts', 'did you know': 'facts', stat: 'stat', steps: 'steps', before: 'before', after: 'after', checklist: 'checklist', timeline: 'timeline', quote: 'quote', 'key idea': 'key-idea'};
 const BOX_ICON = {try: 'moon', tip: 'bulb', from: 'quote', safety: 'warn', red: 'flag'};
-// Toby build 42: blocks that only a typed book has (plan.md "Type: ..."). A book with no type never gets them,
+// Max build 42: blocks that only a typed book has (plan.md "Type: ..."). A book with no type never gets them,
 // so a finished book is laid out exactly as before.
 const TYPED = {recipe: 'recipe', project: 'project', 'this week': 'week'};
 let TYPE = '';
@@ -216,7 +216,7 @@ function plainTable(t) {
   const cls = i => (onlyCites[i] ? ' class="src"' : longest[i] <= 22 && i < cols - 1 ? ' class="nw"' : '');
   return `<table class="${t.rows.length <= 16 ? 'small' : 'long'}"><thead><tr>${t.header.map((c, i) => `<th${cls(i)}>${inline(c.text)}</th>`).join('')}</tr></thead><tbody>${t.rows.map(r => `<tr>${r.map((c, i) => `<td${cls(i)}>${inline(c.text)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
-// Toby build 42: a typed book's troubleshooting table ("What went wrong | Why | Fix next time", "Looks like | What to do").
+// Max build 42: a typed book's troubleshooting table ("What went wrong | Why | Fix next time", "Looks like | What to do").
 const isTrouble = t => TYPE && t.header.length >= 2 && /^(what went wrong|looks like)\b/i.test(cellText(t.header[0]));
 function table(t) {
   if (isTalk(t)) return talkTable(t);
@@ -598,8 +598,8 @@ export function bookToFix(report, printed = true) {
   for (const x of pics.noAlt || []) out.push(`${x.where}: the picture ${x.href} has no description. Put a few words on what it shows between the square brackets: ![A bubbly starter in a jar](...).`);
   const check = report.check;
   if (check?.listsSplit) out.push(`A list, box or table is split across two pages in ${check.listsSplitIn.join(', ')}. Make it shorter, or split it into two under their own headings.`);
-  if (printed && report.measured === false) out.push('Toby could not measure this PDF, so page numbers, spare facts and stretched chapter endings are missing. Run make_book once more; if this message comes back, tell Toby.');
-  if (printed && report.layoutHeld === false) out.push('The layout would not settle, so this PDF has no spare facts or stretched chapter endings. Run make_book once more; if this message comes back, tell Toby.');
+  if (printed && report.measured === false) out.push('Max could not measure this PDF, so page numbers, spare facts and stretched chapter endings are missing. Run make_book once more; if this message comes back, tell Max.');
+  if (printed && report.layoutHeld === false) out.push('The layout would not settle, so this PDF has no spare facts or stretched chapter endings. Run make_book once more; if this message comes back, tell Max.');
   return out;
 }
 

@@ -17,13 +17,13 @@ async function team(files) {
 const ranked = `# Creators, 2026-11-19\n\n## Ranked list\n| rank | handle | niche | country | followers | score | reach / demand / teaches / fit / consistency | contact | fits an existing book? | rising? |\n|---|---|---|---|---|---|---|---|---|---|\n| 1 | @newbaker | sourdough and baking | USA | 21,500 | 81 | 22 / 25 / 20 / 8 / 6 | email: new@example.com | sourdough-at-home | no history |\n| 2 | @${H} | sourdough and baking | UK | 9,000 | 70 | 15 / 18 / 20 / 8 / 9 | DM only | no | no history |\n| 3 | @agentbaker | meal prep | UK | 99,000 | 62 | 8 / 10 / 20 / 15 / 9 | email: sam@talentco.example (talent manager) | no | no history |\n\n## 1. New Baker\nMore text | with | pipes | that | is | not | a | row |\n`;
 const existing = toCsv([{...Object.fromEntries(COLUMNS.map(c => [c, ''])), handle: H, name: 'Test, "the baker"', stage_no: '1', stage: 'Found', notes: 'kept, with a comma'}]);
 
-test('Toby build 38: the log reads and writes CSV with commas and quotes safely', () => {
+test('Max build 38: the log reads and writes CSV with commas and quotes safely', () => {
   const rows = parseCsv(existing);
   assert.equal(rows.length, 1); assert.equal(rows[0].name, 'Test, "the baker"'); assert.equal(rows[0].notes, 'kept, with a comma');
   assert.deepEqual(parseCsv(toCsv(rows)), rows);
 });
 
-test('Toby build 38: new ranked creators come from Creator Partnerships\' daily file', () => {
+test('Max build 38: new ranked creators come from Creator Partnerships\' daily file', () => {
   const found = rankedCreators(ranked, 'creators/2026-11-19.md');
   assert.deepEqual(found.map(f => f.handle), ['newbaker', H, 'agentbaker']);
   assert.equal(found[0].followers, '21500'); assert.equal(found[0].contact, 'new@example.com'); assert.equal(found[0].base_book, 'sourdough-at-home'); assert.equal(found[0].found_date, '2026-11-19');
@@ -32,7 +32,7 @@ test('Toby build 38: new ranked creators come from Creator Partnerships\' daily 
   assert.deepEqual(rankedCreators('# Creators\nNo table today.\n', 'creators/2026-11-20.md'), []);
 });
 
-test('Toby build 38: found creators are added once, existing rows are never changed, and the page is rebuilt', async () => {
+test('Max build 38: found creators are added once, existing rows are never changed, and the page is rebuilt', async () => {
   const root = await team({'creators/2026-11-19.md': ranked, [LOG_CSV]: existing});
   const now = new Date(2026, 10, 19, 7, 40).getTime();
   try {
@@ -56,7 +56,7 @@ const fakeService = names => {
 const reply = (service, bot) => { const b = service.state.bots.find(x => x.name === bot), c = service.state.conversations.find(x => x.botId === b.id); c.messages.push({id: 'r' + Math.random(), role: 'assistant', status: 'complete', content: 'done'}); };
 const touch = (root, p, t) => utimes(join(root, p), new Date(t), new Date(t));
 
-test('Toby build 38: a package run moves the creator along the log by itself, then Toby records what Tavin says', async () => {
+test('Max build 38: a package run moves the creator along the log by itself, then Max records what Tavin says', async () => {
   const steps = {steps: [
     {id: 'look', bot: 'Creative Studio', task: 'write her look file', gates: [{file: 'creators/look/{handle}.md', contains: ['Palette:']}]},
     {id: 'visual', bot: 'Visual Check', task: 'check both carousels', gates: [{file: 'creators/look/{handle}.md'}]},
@@ -86,7 +86,7 @@ test('Toby build 38: a package run moves the creator along the log by itself, th
   } finally { await rm(root, {recursive: true, force: true}); await rm(data, {recursive: true, force: true}); }
 });
 
-test('Toby build 38: a stopped run says so in the log, and the page lists every stage', async () => {
+test('Max build 38: a stopped run says so in the log, and the page lists every stage', async () => {
   assert.equal(STAGES.length, 15);
   const page = renderLogHtml([], new Date(2026, 10, 19, 6, 0).getTime());
   for (const s of STAGES) assert.ok(page.includes(s.replace('+', '+')));

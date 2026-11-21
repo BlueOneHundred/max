@@ -9,7 +9,7 @@ import {TeamFolder} from '../src/team-folder.mjs';
 import {agentRuntime} from '../src/agent-tools.mjs';
 import {softResult} from '../src/soft-results.mjs';
 
-test('Toby build 32: a missing team file is a normal answer, not a red error', async t => {
+test('Max build 32: a missing team file is a normal answer, not a red error', async t => {
   const dir=await mkdtemp(join(tmpdir(),'toby-soft-'));t.after(()=>rm(dir,{recursive:true,force:true}));
   const activity=[];
   const rt=await agentRuntime({bot:{id:randomUUID(),name:'Creative Studio',capabilities:{web:false,computer:false,connections:false}},conversationId:randomUUID(),
@@ -27,7 +27,7 @@ test('Toby build 32: a missing team file is a normal answer, not a red error', a
   assert.equal(activity.at(-1).status,'error');
 });
 
-test('Toby build 32: which outcomes are soft', () => {
+test('Max build 32: which outcomes are soft', () => {
   const enoent=Object.assign(new Error("ENOENT: no such file or directory, lstat 'x'"),{code:'ENOENT'});
   assert.ok(softResult('read_team_file',{path:'a.md'},enoent));
   assert.equal(softResult('make_app',{bookDir:'x'},new Error('Not found in the team folder: x')),null);

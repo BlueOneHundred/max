@@ -1,5 +1,5 @@
-// Toby: sound effects and music from ElevenLabs (make_sound), with Tavin's own API key (the custom connection
-// named "elevenlabs" in Toby). Several takes are made and measured so the bot can pick one by measurement
+// Max: sound effects and music from ElevenLabs (make_sound), with Tavin's own API key (the custom connection
+// named "elevenlabs" in Max). Several takes are made and measured so the bot can pick one by measurement
 // (rankTakes in media.mjs), since nobody on the team can hear.
 export const SFX_MODELS = ['eleven_text_to_sound_v2', 'eleven_text_to_sound_v3'];
 export const MUSIC_MODELS = ['music_v1', 'music_v2', 'music_v2_5'];
@@ -23,9 +23,9 @@ export async function elevenLabs({path, body, key, fetchImpl = fetch, signal}) {
   const res = await fetchImpl('https://api.elevenlabs.io' + path, {method: 'POST', headers: {'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg'}, body: JSON.stringify(body), signal});
   if (res.status === 401 || res.status === 403) {
     const t = await res.text().catch(() => '');
-    throw new Error('ElevenLabs refused Toby\'s key' + (/permission|scope/i.test(t) ? ' (the key is not allowed to use this: in ElevenLabs, give the key access to Sound Effects and Music)' : '') + '. Ask Tavin to check the "elevenlabs" connection in Toby.');
+    throw new Error('ElevenLabs refused Max\'s key' + (/permission|scope/i.test(t) ? ' (the key is not allowed to use this: in ElevenLabs, give the key access to Sound Effects and Music)' : '') + '. Ask Tavin to check the "elevenlabs" connection in Max.');
   }
-  if (res.status === 429) throw new Error('ElevenLabs is busy or the monthly credits are used up. Try again later and tell Toby.');
+  if (res.status === 429) throw new Error('ElevenLabs is busy or the monthly credits are used up. Try again later and tell Max.');
   if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error('ElevenLabs could not make the sound: ' + t.slice(0, 300)); }
   const bytes = Buffer.from(await res.arrayBuffer());
   const credits = Number(res.headers.get('character-cost')) || null;

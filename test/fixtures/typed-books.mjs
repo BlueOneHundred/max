@@ -1,4 +1,4 @@
-// Toby build 42: made-up books, one per book type, for tests and visual checks. All text is invented for testing.
+// Max build 42: made-up books, one per book type, for tests and visual checks. All text is invented for testing.
 const facts = n => `> Facts:\n${[1, 2, 3, 4, 5].map(i => `> - ${i * n} | A short made-up fact number ${i} [S1]`).join('\n')}\n`;
 const end = n => `> Remember:\n> - The main point of chapter ${n} [S1]\n> - A second point to keep [S2]\n\n${facts(n)}`;
 export const SOURCES = '\n## Sources\n\nS1. A made-up guide to testing. Example Org. 2025. https://example.org/one\nS2. Another made-up page. Example Group. 2024. https://example.org/two\n';

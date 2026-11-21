@@ -37,7 +37,7 @@ const goodFiles = () => ({
   ['outreach/send-sheet-2026-11-18.md']: email(goodEmail), [`outreach/breakdown-${H}.html`]: breakdown()
 });
 
-test('Toby build 36: a good package passes the automatic check', async () => {
+test('Max build 36: a good package passes the automatic check', async () => {
   const root = await team(goodFiles());
   try {
     const r = await runPackageCheck(root, {handle: '@' + H, base: BASE});
@@ -47,7 +47,7 @@ test('Toby build 36: a good package passes the automatic check', async () => {
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 
-test('Toby build 36: the check catches what Claude caught by hand on 18 Nov', async () => {
+test('Max build 36: the check catches what Claude caught by hand on 18 Nov', async () => {
   const files = goodFiles();
   files[`${ed}/part-a.md`] = goodParts
     .replace('My loaves get loaded up.', 'I always say "never ever skip the salt step" in my reels.')
@@ -77,7 +77,7 @@ test('Toby build 36: the check catches what Claude caught by hand on 18 Nov', as
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 
-test('Toby build 36: the email check reads the newest full Email 1, not a sign-off update', () => {
+test('Max build 36: the email check reads the newest full Email 1, not a sign-off update', () => {
   const sheet = email(goodEmail) + `\n## Update 17:52\n\n### @${H} · final sign-offs · NOT sent\n\n**Email 1 sign-off (final)**\n\nTavin\n`;
   const found = emailSection(sheet, H);
   assert.ok(found.email.includes(link)); assert.ok(!found.email.includes('Why this is safe'));
@@ -86,7 +86,7 @@ test('Toby build 36: the email check reads the newest full Email 1, not a sign-o
   assert.deepEqual(editionBoxes(goodParts).map(b => b.chapter), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 });
 
-test('Toby build 36: breakdown arithmetic matches the one Claude checked for Hillary', () => {
+test('Max build 36: breakdown arithmetic matches the one Claude checked for Hillary', () => {
   const report = {items: []}; checkBreakdownText(report, {html: breakdown()}); assert.deepEqual(report.items, []);
 });
 
@@ -98,7 +98,7 @@ function fakeService(names) {
 const touch = (root, p, t) => utimes(join(root, p), new Date(t), new Date(t));
 const reply = (service, bot, status = 'complete') => { const b = service.state.bots.find(x => x.name === bot), c = service.state.conversations.find(x => x.botId === b.id); c.messages.push({id: 'r' + Math.random(), role: 'assistant', status, content: 'done'}); };
 
-test('Toby build 36: a package run goes bot by bot, gates each step, gives one fix run, then waits for Tavin', async () => {
+test('Max build 36: a package run goes bot by bot, gates each step, gives one fix run, then waits for Tavin', async () => {
   const steps = {steps: [
     {id: 'voice', bot: 'Creator Partnerships', task: 'make her voice file', gates: [{file: 'creators/voice/{handle}.md'}, {check: ['voice']}]},
     {id: 'carousels', bot: 'Marketing Kit', task: 'make 2 carousels', retry: ['Art Director', 'Marketing Kit'], gates: [{file: '{edition}/carousel/captions.md', contains: ['Paid partnership']}]},
@@ -106,7 +106,7 @@ test('Toby build 36: a package run goes bot by bot, gates each step, gives one f
   const root = await team({[`ebooks/${BASE}/part-a.md`]: '# Base\n', 'pipeline/steps.json': JSON.stringify(steps), 'board/decisions-2026-11.md': '2026-11-18 I57 | for: X | instruction: y | status: decided | 17:28\n'});
   const data = await mkdtemp(join(tmpdir(), 'toby-b36d-'));
   let now = new Date(2026, 10, 19, 9, 0).getTime();
-  const service = fakeService(['Toby', 'Creator Partnerships', 'Art Director', 'Marketing Kit']);
+  const service = fakeService(['Max', 'Creator Partnerships', 'Art Director', 'Marketing Kit']);
   const p = await new Pipelines({directory: data, teamRoot: root, teamFolder: new TeamFolder(root), service, busy: () => false, now: () => now}).init();
   try {
     const run = await p.start({handle: '@' + H, base: BASE, contact: 'email', notes: 'Keep her | dog out'});
@@ -134,14 +134,14 @@ test('Toby build 36: a package run goes bot by bot, gates each step, gives one f
     const runs = await readFile(join(root, 'board/runs-2026-11-19.md'), 'utf8');
     assert.match(runs, /Package runs \| done: @testbaker step "voice" \(Creator Partnerships\) passed/); assert.match(runs, /READY for Tavin's review/);
     const approved = await p.approve(H, 'Looks great');
-    assert.equal(approved.status, 'approved'); assert.match(await readFile(join(root, 'board/decisions-2026-11.md'), 'utf8'), /I59 \| for: Outreach Writer, Toby \| instruction: Tavin APPROVED @testbaker's package/);
+    assert.equal(approved.status, 'approved'); assert.match(await readFile(join(root, 'board/decisions-2026-11.md'), 'utf8'), /I59 \| for: Outreach Writer, Max \| instruction: Tavin APPROVED @testbaker's package/);
     // The run survives a restart of the app.
     const again = await new Pipelines({directory: data, teamRoot: root, teamFolder: new TeamFolder(root), service, busy: () => false, now: () => now}).init();
     assert.equal(again.find(H).status, 'approved');
   } finally { await rm(root, {recursive: true, force: true}); await rm(data, {recursive: true, force: true}); }
 });
 
-test('Toby build 36: a step that fails twice stops the run and says why on the board', async () => {
+test('Max build 36: a step that fails twice stops the run and says why on the board', async () => {
   const steps = {steps: [{id: 'look', bot: 'Creative Studio', task: 'write her look file', gates: [{file: 'creators/look/{handle}.md', contains: ['Palette:']}]}, {id: 'review', review: true}]};
   const root = await team({[`ebooks/${BASE}/part-a.md`]: '# Base\n', 'pipeline/steps.json': JSON.stringify(steps)});
   const data = await mkdtemp(join(tmpdir(), 'toby-b36d-')); let now = new Date(2026, 10, 19, 10, 0).getTime();
@@ -163,10 +163,10 @@ test('Toby build 36: a step that fails twice stops the run and says why on the b
   } finally { await rm(root, {recursive: true, force: true}); await rm(data, {recursive: true, force: true}); }
 });
 
-test('Toby build 36: starting checks the handle, the base book and the bots', async () => {
+test('Max build 36: starting checks the handle, the base book and the bots', async () => {
   const root = await team({[`ebooks/${BASE}/part-a.md`]: '# Base\n'});
   const data = await mkdtemp(join(tmpdir(), 'toby-b36d-'));
-  const p = await new Pipelines({directory: data, teamRoot: root, teamFolder: new TeamFolder(root), service: fakeService(['Toby']), busy: () => false}).init();
+  const p = await new Pipelines({directory: data, teamRoot: root, teamFolder: new TeamFolder(root), service: fakeService(['Max']), busy: () => false}).init();
   try {
     await assert.rejects(p.start({handle: 'bad handle!', base: BASE}), /Instagram handle/);
     await assert.rejects(p.start({handle: H, base: 'nope'}), /No base book at ebooks\/nope/);
@@ -175,7 +175,7 @@ test('Toby build 36: starting checks the handle, the base book and the bots', as
   } finally { await rm(root, {recursive: true, force: true}); await rm(data, {recursive: true, force: true}); }
 });
 
-test('Toby build 36: the standard steps cover the whole package in order', () => {
+test('Max build 36: the standard steps cover the whole package in order', () => {
   const s = DEFAULT_STEPS.steps;
   assert.deepEqual(s.map(x => x.bot || 'review'), ['Creator Partnerships', 'Creative Studio', 'Edition Writer', 'App Builder', 'Art Director', 'Marketing Kit', 'Visual Check', 'Outreach Writer', 'Outreach Writer', 'review']);
   assert.ok(s.find(x => x.id === 'app').gates.some(g => g.phone), 'the app is checked at phone size');
@@ -184,12 +184,12 @@ test('Toby build 36: the standard steps cover the whole package in order', () =>
   assert.match(line, /^2026-11-19 I60 \| for: .* \| status: decided \| 08:05\n$/); assert.match(line, /Instagram DM draft/); assert.doesNotMatch(line, /—|–/, 'no dashes');
 });
 
-test('Toby build 36: carousel words always sit on the deep colour, however long the title', () => {
+test('Max build 36: carousel words always sit on the deep colour, however long the title', () => {
   const html = slideHtml({slide: {type: 'cover', title: "Don't pour out your **discard**!", kicker: 'Discard'}, index: 1, total: 8, layout: 'panel', paletteName: 'terracotta', handle: H});
   assert.match(html, /\.slide\.dark \.txt\{z-index:2\}/); assert.match(html, /\.slide\.dark \.txt::before\{content:'';position:absolute/);
 });
 
-test('Toby build 36: the phone check opens every tab and a chapter at 390 px', () => {
+test('Max build 36: the phone check opens every tab and a chapter at 390 px', () => {
   assert.deepEqual(PHONE, {width: 390, height: 844});
   for (const bit of ['skipsetup', 'nav [data-go]', 'First hours', 'scrolls sideways', 'did not load', '[data-go^="ch-"]']) assert.ok(APP_PHONE_SCRIPT.includes(bit), bit);
   assert.doesNotThrow(() => new Function('return ' + APP_PHONE_SCRIPT.replace(/^\(async/, '(async')));

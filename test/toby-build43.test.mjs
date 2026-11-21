@@ -31,7 +31,7 @@ import {TeamFolder} from '../src/team-folder.mjs';
 
 const SLUG = 'test-shed', NICHE = 'garden shed building';
 const NICHES = '# Book types\n\n| Niche | Type |\n|---|---|\n| sourdough and baking | recipe |\n| DIY home projects | project |\n\nNotes:\n- one\n';
-const BOTS = ['Toby', 'Ebook Builder', 'Art Director', 'Creative Studio', 'Visual Check', 'App Builder', 'Creator Partnerships'];
+const BOTS = ['Max', 'Ebook Builder', 'Art Director', 'Creative Studio', 'Visual Check', 'App Builder', 'Creator Partnerships'];
 function fakeService(names) {
   const state = {bots: names.map((name, i) => ({id: 'b' + i, name})), conversations: names.map((_, i) => ({id: 'c' + i, botId: 'b' + i, messages: [], updatedAt: i}))};
   return {state, delivered: [], async _deliver(c, input, _a, setup) { c.messages.push({id: 'm' + Math.random(), role: 'user', content: input, sourceScheduleRunId: setup.scheduled.runId, status: 'complete'}); this.delivered.push({bot: state.bots.find(b => b.id === c.botId).name, input, setup}); }};
@@ -58,7 +58,7 @@ test('build 43: a book run makes the whole base book bot by bot, sends the pictu
     const run = await p.startBook({base: SLUG, niche: NICHE, topic: 'build a small garden shed from a kit', type: 'project', handle: '@testbuilder', contact: 'email', notes: 'Keep | roofing simple'});
     assert.equal(run.decision, 67); assert.equal(run.kind, 'book');
     const decisions = await readText(join(root, 'board/decisions-2026-11.md'), 'utf8');
-    assert.match(decisions, /^2026-11-20 I67 \| for: Ebook Builder, Art Director, Creative Studio, Visual Check, App Builder, Toby \| instruction: BOOK RUN, NEW BASE BOOK ebooks\/test-shed .*Type for ebooks\/test-shed: project .*starts the package run for @testbuilder.*Keep \/ roofing simple \| status: decided \| 08:00\n$/m);
+    assert.match(decisions, /^2026-11-20 I67 \| for: Ebook Builder, Art Director, Creative Studio, Visual Check, App Builder, Max \| instruction: BOOK RUN, NEW BASE BOOK ebooks\/test-shed .*Type for ebooks\/test-shed: project .*starts the package run for @testbuilder.*Keep \/ roofing simple \| status: decided \| 08:00\n$/m);
     assert.doesNotMatch(decisions, /—|–/, 'no dashes');
     assert.match(await readText(join(root, 'templates/book-types/niches.md'), 'utf8'), /\| DIY home projects \| project \|\n\| garden shed building \| project \|\n\nNotes/, 'the niche is added to the table');
     await assert.rejects(p.startBook({base: SLUG, niche: NICHE, topic: 't', type: 'project'}), /already has a book run going/);
@@ -127,7 +127,7 @@ test('build 43: a book run stops for Tavin after its fix runs, and checks what i
     await assert.rejects(p.startBook({base: 'Bad Name!', niche: NICHE, topic: 't', type: 'project'}), /folder name/);
     await assert.rejects(p.startBook({base: SLUG, niche: NICHE, topic: 't', type: 'guess'}), /one of care, recipe, project, routine.*never guess/);
     await assert.rejects(p.startBook({base: SLUG, niche: '', topic: 't', type: 'project'}), /Give the niche/);
-    const lonely = await new Pipelines({directory: data, teamRoot: root, teamFolder: new TeamFolder(root), service: fakeService(['Toby']), busy: () => false}).init();
+    const lonely = await new Pipelines({directory: data, teamRoot: root, teamFolder: new TeamFolder(root), service: fakeService(['Max']), busy: () => false}).init();
     await assert.rejects(lonely.startBook({base: SLUG, niche: NICHE, topic: 't', type: 'project'}), /No chat found for the bot "Ebook Builder"/);
     // A niche already on the list is not added twice; a book run with no creator just ends ready.
     await p.startBook({base: SLUG, niche: 'DIY home projects', topic: 'shelves', type: 'project'});

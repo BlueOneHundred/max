@@ -1,4 +1,4 @@
-// Toby: builds a book's companion app (one self-contained HTML file) from the same Markdown parts make_book reads.
+// Max: builds a book's companion app (one self-contained HTML file) from the same Markdown parts make_book reads.
 // The design lives in the template (kept in the team folder, so it can change without a new build); this file only
 // turns the Markdown into the data the template shows, and checks it. Ported from the proven make-app.mjs script.
 import {readFileSync} from 'node:fs';
@@ -24,7 +24,7 @@ export function appSlug(bookDir) {
  * Returns {html, check}; check.passed is false when check.problems lists anything.
  */
 export function buildApp({files, bookDir, coverDataUrl, template, creator = '', palette: paletteName = 'pine', pictures = {}, bookType = null}) {
-  // Toby build 42: a typed book (plan.md "Type: ...") gets its type's blocks and tabs; with no type the app is built as before.
+  // Max build 42: a typed book (plan.md "Type: ...") gets its type's blocks and tabs; with no type the app is built as before.
   const TYPE = bookType?.type && !bookType.error ? bookType.type : '';
   let appJson = {};
   if (files.appJson) { try { appJson = JSON.parse(files.appJson); } catch (e) { throw new Error('app.json could not be read: ' + e.message); } }
@@ -184,7 +184,7 @@ export function buildApp({files, bookDir, coverDataUrl, template, creator = '', 
     ch.words = s.lines.join(' ').split(/\s+/).length;
     for (const b of blocks) {
       if (b.t === 'plan') book.plan = b.rows;
-      // Toby build 33: only a "Week 1: ..." timeline describes the plan's weeks. Other timelines (a loaf's first hours,
+      // Max build 33: only a "Week 1: ..." timeline describes the plan's weeks. Other timelines (a loaf's first hours,
       // a starter's days) are not week summaries, so they must never become the Plan tab's week lines.
       if (b.t === 'timeline' && b.items.length && b.items.every((x) => /^Week \d+:/.test(x))) book.weeks = b.items.map((x) => x.replace(/^Week \d+:\s*/, ''));
       if (b.t === 'tool' && b.tool) book.tools[b.tool] = { title: b.title, head: b.head, rows: b.rows, chapter: ch.num };

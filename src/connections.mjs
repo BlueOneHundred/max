@@ -10,11 +10,11 @@ export class Connections {
   async init(){await mkdir(this.directory,{recursive:true,mode:0o700});try{this.value=JSON.parse(await this.decrypt(await readFile(join(this.directory,'connections.secure'))));}catch(error){if(error.code!=='ENOENT')throw new Error('Could not unlock saved connections.');}return this;}
   async save(){const temporary=join(this.directory,`.connections-${randomUUID()}`);await writeFile(temporary,await this.encrypt(JSON.stringify(this.value)),{mode:0o600});await steadyRename(temporary,join(this.directory,'connections.secure'));}
   status(){return {composio:!!(this.value.composioKey||this.value.composioAccount),cloud:!!this.value.cloud?.token,cloudEndpoint:this.value.cloud?.endpoint||'',custom:(this.value.custom||[]).map(({name,url,askFirst})=>({name,url,askFirst:!!askFirst}))};}
-  // Toby: custom MCP connections (e.g. treg or Apify). Tokens stay encrypted here and are never returned by status().
-  // Toby: the custom connection named "app_publisher" is not an MCP server. It holds the GitHub repository that
+  // Max: custom MCP connections (e.g. treg or Apify). Tokens stay encrypted here and are never returned by status().
+  // Max: the custom connection named "app_publisher" is not an MCP server. It holds the GitHub repository that
   // companion apps are published to (address https://github.com/<owner>/<repo>) and a token that can write to it.
   appPublisher(){const c=(this.value.custom||[]).find(c=>c.name===APP_PUBLISHER);if(!c||!c.token)return null;const url=new URL(c.url),m=url.pathname.match(/^\/([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);if(url.hostname!=='github.com'||!m)return null;return{owner:m[1],repo:m[2],token:c.token,site:(url.searchParams.get('site')||'https://app.blueonehundred.com').replace(/\/+$/,'')};}
-  // Toby: API keys kept as custom connections (never MCP servers): "elevenlabs" (Tavin's ElevenLabs key, address
+  // Max: API keys kept as custom connections (never MCP servers): "elevenlabs" (Tavin's ElevenLabs key, address
   // https://api.elevenlabs.io). The fal key is the token of the fal connection (Creative Studio's MCP connection).
   apiKey(kind){const list=(this.value.custom||[]).filter(c=>c.token);const host=c=>{try{return new URL(c.url).hostname;}catch{return '';}};
     const c=kind==='fal'?list.find(c=>c.name==='fal')||list.find(c=>/(^|\.)fal\.(ai|run)$/.test(host(c))):kind==='elevenlabs'?list.find(c=>c.name==='elevenlabs')||list.find(c=>host(c)==='api.elevenlabs.io'&&!/\/mcp/.test(new URL(c.url).pathname)):null;return c?c.token:null;}

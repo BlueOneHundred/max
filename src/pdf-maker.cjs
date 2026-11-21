@@ -1,4 +1,4 @@
-// Toby: turn a self-contained HTML file from the team folder into a PDF with Chromium's own printer.
+// Max: turn a self-contained HTML file from the team folder into a PDF with Chromium's own printer.
 // The page loads in a hidden window with scripts off and every network request blocked, so a book
 // can only use what is inside the file or files beside it (file: and data: URLs).
 const { BrowserWindow, session } = require('electron');
@@ -40,7 +40,7 @@ async function makePdf({ file, pageSize = 'Letter', signal, root }) {
     return Buffer.from(bytes);
   } finally { signal?.removeEventListener('abort', abort); abort(); }
 }
-// Toby: capture a self-contained HTML page as a picture (carousel slides, a book's cover). The page is laid
+// Max: capture a self-contained HTML page as a picture (carousel slides, a book's cover). The page is laid
 // out at exactly width x height CSS pixels through Chromium's own device emulation and captured with its
 // screenshot command, so the window, the screen size and Windows display scaling never change the result.
 // script (optional) runs in the page first and its result is returned (the slide check); hideCss (optional)
@@ -82,7 +82,7 @@ async function renderPage({ file, width, height, root, signal, script, hideCss, 
     return { jpeg: picture.toJPEG(quality), result, background, width: want.width, height: want.height };
   } finally { signal?.removeEventListener('abort', abort); try { wc.debugger.detach(); } catch {} abort(); }
 }
-// Toby: draw a moving page frame by frame (make_reel). The page is loaded once in a hidden offscreen window at
+// Max: draw a moving page frame by frame (make_reel). The page is loaded once in a hidden offscreen window at
 // exactly width x height; setup (a script returning a promise) runs first and its result is returned; then for
 // each frame, frameScript(i) runs (it may return a promise, e.g. while a clip frame decodes) and the frame is
 // captured as a JPEG and handed to onFrame, which may be async (it feeds ffmpeg). Network is still blocked.

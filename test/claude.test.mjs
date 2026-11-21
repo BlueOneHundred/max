@@ -97,7 +97,7 @@ test('changing recalled data keeps a Claude session warm; privacy changes requir
  const calls=[];let metadata;const reply=setup(args=>{calls.push(args);return success();}),common={bot,settings,workspaceDir:await directory(t),signal:new AbortController().signal,onMetadata:m=>metadata=m};let messages=[{role:'user',content:'Hi'}];await collect(reply({...common,messages,turnContext:'Preference A',contextEpoch:0}));const first=metadata.claudeSession;messages.push({role:'assistant',content:'Hello'},{role:'user',content:'Next'});await collect(reply({...common,messages,claudeSession:first,turnContext:'Preference B',contextEpoch:0}));assert.equal(calls[1].options.resume,sessionId);assert.match(calls[1].prompt,/Preference B/);const second=metadata.claudeSession;messages.push({role:'assistant',content:'Hello'},{role:'user',content:'After forget'});await collect(reply({...common,messages,claudeSession:second,turnContext:'',contextEpoch:1}));assert.equal(calls[2].options.resume,undefined);
 });
 
-test('Toby: text written before and after tool use is kept as separate paragraphs', async t => {
+test('Max: text written before and after tool use is kept as separate paragraphs', async t => {
   const workspaceDir = await directory(t);
   const start = { type: 'stream_event', parent_tool_use_id: null, event: { type: 'content_block_start', content_block: { type: 'text', text: '' } } };
   const delta = text => ({ type: 'stream_event', parent_tool_use_id: null, event: { type: 'content_block_delta', delta: { type: 'text_delta', text } } });

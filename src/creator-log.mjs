@@ -1,9 +1,9 @@
-// Toby build 38: the creator progress log. One row per creator Creator Partnerships has found, with the stage
+// Max build 38: the creator progress log. One row per creator Creator Partnerships has found, with the stage
 // each one is at in Tavin's process. Lives in the team folder as creators/creators-log.csv (the record) and
 // creators/creators-log.html (the page Tavin reads). The app keeps it up to date by itself:
 // - new ranked creators from Creator Partnerships' daily file (creators/<date>.md, "## Ranked list") are added as "Found";
 // - a package run sets "Picked" when it starts and moves the row on each time a step passes its automatic check;
-// - approve_package sets "Approved"; Toby's set_creator_stage records Sent, Replied, Yes, No and later stages.
+// - approve_package sets "Approved"; Max's set_creator_stage records Sent, Replied, Yes, No and later stages.
 // The log is only written by code, never by a bot, so no step can be forgotten.
 import {readFile,readdir,stat} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -16,7 +16,7 @@ export const COLUMNS = ['handle', 'name', 'niche', 'country', 'followers', 'scor
   'base_book', 'stage_no', 'stage', 'stage_updated', 'waiting_on', 'next_step', 'app_link', 'notes'];
 // Package step id -> the stage reached when that step passes.
 export const STEP_STAGE = {voice: 3, look: 4, edition: 5, app: 6, carousels: 7, visual: 8, email: 9, dm: 9};
-// Stages Toby may set when Tavin tells him (set_creator_stage).
+// Stages Max may set when Tavin tells him (set_creator_stage).
 export const TAVIN_STAGES = ['Sent', 'Replied', 'Yes', 'No', 'Store + launch kit', 'Live on Whop'];
 
 const pad = n => String(n).padStart(2, '0');
@@ -112,21 +112,21 @@ export class CreatorLog {
   stepPassed(run, stepId, nextLabel, appLink) {
     const n = STEP_STAGE[stepId]; if (!n) return this.chain;
     return this.update(rows => { const r = this.row(rows, run.handle);
-      this.setStage(rows, r, n, {waiting_on: nextLabel ? 'Package run (automatic)' : 'Tavin: review', next_step: nextLabel || `Open pipeline/${run.handle}/review.html, then tell Toby "approve @${run.handle}" or what to change`, app_link: appLink || r.app_link}); });
+      this.setStage(rows, r, n, {waiting_on: nextLabel ? 'Package run (automatic)' : 'Tavin: review', next_step: nextLabel || `Open pipeline/${run.handle}/review.html, then tell Max "approve @${run.handle}" or what to change`, app_link: appLink || r.app_link}); });
   }
   stopped(run, reason) {
     return this.update(rows => { const r = this.row(rows, run.handle); r.waiting_on = 'Tavin: package run stopped'; r.next_step = `See pipeline/${run.handle}/status.md: ${clean(reason).slice(0, 160)}`; r.stage_updated = stamp(this.now()); });
   }
   approved(run) {
-    return this.update(rows => { const r = this.row(rows, run.handle); this.setStage(rows, r, 10, {waiting_on: 'Tavin: send', next_step: 'Tavin sends the draft himself, then tells Toby "sent @' + run.handle + '"'}); });
+    return this.update(rows => { const r = this.row(rows, run.handle); this.setStage(rows, r, 10, {waiting_on: 'Tavin: send', next_step: 'Tavin sends the draft himself, then tells Max "sent @' + run.handle + '"'}); });
   }
-  // Toby, when Tavin tells him
+  // Max, when Tavin tells him
   async setByTavin(handle, stage, note = '') {
     const want = TAVIN_STAGES.find(s => s.toLowerCase() === String(stage).trim().toLowerCase());
     if (!want) throw new Error(`stage must be one of: ${TAVIN_STAGES.join(', ')}.`);
     const rows = await this.update(rows => { const r = rows.find(x => key(x.handle) === key(handle)); if (!r) throw new Error(`@${key(handle)} is not in the creator log.`);
       const n = want === 'No' ? 0 : STAGES.indexOf(want) + 1;
-      const next = {Sent: ['Creator', 'Wait for her reply; follow-up after 3 days'], Replied: ['Tavin', 'Read her reply; tell Toby "yes @handle" or "no @handle"'], Yes: ['Store Manager and Marketing Kit', 'Whop product and launch kit'], No: ['nobody', 'none'], 'Store + launch kit': ['Tavin', 'Whop clicks, then go live'], 'Live on Whop': ['nobody', 'Selling']}[want];
+      const next = {Sent: ['Creator', 'Wait for her reply; follow-up after 3 days'], Replied: ['Tavin', 'Read her reply; tell Max "yes @handle" or "no @handle"'], Yes: ['Store Manager and Marketing Kit', 'Whop product and launch kit'], No: ['nobody', 'none'], 'Store + launch kit': ['Tavin', 'Whop clicks, then go live'], 'Live on Whop': ['nobody', 'Selling']}[want];
       this.setStage(rows, r, n, {waiting_on: next[0], next_step: next[1].replace('@handle', '@' + r.handle)});
       if (note) r.notes = clean((r.notes ? r.notes + '; ' : '') + `${stamp(this.now()).slice(0, 10)}: ${note}`).slice(0, 600); });
     // Build 44: every send is also one line in outreach/sent-<month>.md, so "Sent today: X of 2" is counted, not guessed.
@@ -151,7 +151,7 @@ export class CreatorLog {
     }
     if (!found.length) return 0;
     let added = 0;
-    await this.update(rows => { for (const f of found) { if (rows.some(x => key(x.handle) === key(f.handle))) continue; const r = this.row(rows, f.handle, f); this.setStage(rows, r, 1, {waiting_on: 'Tavin: pick in the brief', next_step: `If picked: tell Toby "Make a package for @${f.handle}"`}); r.stage_updated = f.found_date || r.stage_updated; added++; } return added ? undefined : false; });
+    await this.update(rows => { for (const f of found) { if (rows.some(x => key(x.handle) === key(f.handle))) continue; const r = this.row(rows, f.handle, f); this.setStage(rows, r, 1, {waiting_on: 'Tavin: pick in the brief', next_step: `If picked: tell Max "Make a package for @${f.handle}"`}); r.stage_updated = f.found_date || r.stage_updated; added++; } return added ? undefined : false; });
     return added;
   }
   async tick() { if (this.now() - this.lastScan < 60000) return; this.lastScan = this.now(); await this.scanFound().catch(() => {}); }
@@ -192,10 +192,10 @@ section{padding:6px 40px 18px}h2{font-size:22px;margin:18px 0 10px}h2 span{color
 .track li.done{background:var(--done);color:#fff}.track li.now{background:var(--acc);color:#fff;font-weight:700}
 .next div{margin-bottom:4px}.notes{font-style:italic}a{color:var(--acc)}footer{padding:10px 40px 40px;color:var(--muted);font-size:15px}
 </style></head><body>
-<header><h1>Creator progress log</h1><p>Every creator Creator Partnerships has found, and the stage each one is at. Updated ${esc(stamp(when))} by the Toby app from <code>creators\\creators-log.csv</code>.</p></header>
+<header><h1>Creator progress log</h1><p>Every creator Creator Partnerships has found, and the stage each one is at. Updated ${esc(stamp(when))} by the Max app from <code>creators\\creators-log.csv</code>.</p></header>
 <div class="stats">${groups.map(([g, rs]) => `<div class="stat"><b>${rs.length}</b>${esc(g)}</div>`).join('')}</div>
 <ol class="legend">${STAGES.map((s, i) => `<li><span>${i + 1}</span>${esc(s)}</li>`).join('')}</ol>
 ${groups.map(([g, rs]) => `<section><h2>${esc(g)} <span>${rs.length}</span></h2>${rs.map(card).join('')}</section>`).join('')}
-<footer>Green = stage done · orange = current stage. The app updates this page by itself: new creators each morning, every package step that passes, approvals, and anything you tell Toby (sent, replied, yes, no).</footer>
+<footer>Green = stage done · orange = current stage. The app updates this page by itself: new creators each morning, every package step that passes, approvals, and anything you tell Max (sent, replied, yes, no).</footer>
 </body></html>`;
 }

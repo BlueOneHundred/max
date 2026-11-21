@@ -1,4 +1,4 @@
-// Toby: Instagram reels (make_reel). A port of the code behind Jane's approved reel (17 Nov 2026:
+// Max: Instagram reels (make_reel). A port of the code behind Jane's approved reel (17 Nov 2026:
 // reel.html, render.py, mix2.py): the whole reel is one HTML page with setTime(t); every frame is drawn
 // offscreen and joined by ffmpeg. Words are real type set here (never drawn by AI), in the book's palette.
 // Shot types:

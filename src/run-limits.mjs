@@ -4,7 +4,7 @@ const ranges={minutes:[1,120],toolCalls:[1,1000],toolFailures:[1,50],outputChara
 export function validateRunLimits(value=DEFAULT_RUN_LIMITS){
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!Object.hasOwn(ranges,k)))throw new Error('Invalid run limits.');
  const out={...DEFAULT_RUN_LIMITS,...value};
- // Toby: the old Gratis defaults cut research runs short; upgrade them unless the user chose other numbers.
+ // Max: the old Gratis defaults cut research runs short; upgrade them unless the user chose other numbers.
  if(out.minutes===10&&out.toolCalls===100&&out.toolFailures===5){out.minutes=DEFAULT_RUN_LIMITS.minutes;out.toolCalls=DEFAULT_RUN_LIMITS.toolCalls;out.toolFailures=DEFAULT_RUN_LIMITS.toolFailures;}
  for(const [key,[min,max]] of Object.entries(ranges))if(!Number.isInteger(out[key])||out[key]<min||out[key]>max)throw new Error(`${key} must be a whole number from ${min} to ${max}.`);
  return out;

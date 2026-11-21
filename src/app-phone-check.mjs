@@ -1,4 +1,4 @@
-// Toby build 36: the app at phone size. Claude used to open every companion app at 390 px wide by hand, click
+// Max build 36: the app at phone size. Claude used to open every companion app at 390 px wide by hand, click
 // "Skip for now", open all 5 tabs and a chapter, and look for broken pictures, sideways scrolling and a wrong
 // Plan tab. This script does the same inside a hidden window (pdf-maker.cjs renderPage) and returns what it found.
 export const PHONE = {width: 390, height: 844};

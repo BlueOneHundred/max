@@ -1,4 +1,4 @@
-// Toby build 32: expected outcomes are answers, not errors.
+// Max build 32: expected outcomes are answers, not errors.
 // A file that does not exist yet, a web page that answers with an HTTP error, or a PDF whose text cannot be read is a normal
 // result the bot can act on. Showing them as red "error" boxes made Tavin think a bot had failed, and counting
 // them as failures could stop a bot's run after 8 in a row. Real faults (bad arguments, a full team folder,

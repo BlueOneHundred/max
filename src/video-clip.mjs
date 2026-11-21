@@ -1,6 +1,6 @@
-// Toby: AI video clips on fal (make_video_clip) and the spending record behind the $1.50-a-reel cap.
-// The cap lives in code: the record is kept in Toby's own data folder (bots cannot edit it), and going over it
-// needs Tavin's yes in Toby's approval prompt. Every paid call is also written to samples/credits-<month>.md.
+// Max: AI video clips on fal (make_video_clip) and the spending record behind the $1.50-a-reel cap.
+// The cap lives in code: the record is kept in Max's own data folder (bots cannot edit it), and going over it
+// needs Tavin's yes in Max's approval prompt. Every paid call is also written to samples/credits-<month>.md.
 import {readFile, writeFile, mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 
@@ -38,7 +38,7 @@ export async function logCredits(teamFolder, {what, model, cost, credits}, now =
   return {path, total};
 }
 
-// fal's queue: submit, wait, fetch the result. key is Toby's fal key (from the fal connection).
+// fal's queue: submit, wait, fetch the result. key is Max's fal key (from the fal connection).
 export async function runFalQueue({endpoint, input, key, resume, fetchImpl = fetch, signal, wait = ms => new Promise(r => setTimeout(r, ms)), timeoutMs = 10 * 60000, onProgress = () => {}}) {
   const headers = {Authorization: 'Key ' + key, 'Content-Type': 'application/json'};
   // The model's own app id (owner/name) is what fal's request URLs use: fal-ai/kling-video/... -> fal-ai/kling-video.
@@ -47,7 +47,7 @@ export async function runFalQueue({endpoint, input, key, resume, fetchImpl = fet
   if (!resume) {
     const res = await fetchImpl('https://queue.fal.run/' + endpoint, {method: 'POST', headers, body: JSON.stringify(input), signal});
     body = await res.json().catch(() => ({}));
-    if (res.status === 401 || res.status === 403) throw new Error('fal refused Toby\'s key. Ask Tavin to check the fal connection in Toby (Connected apps).');
+    if (res.status === 401 || res.status === 403) throw new Error('fal refused Max\'s key. Ask Tavin to check the fal connection in Max (Connected apps).');
     if (!res.ok || !body.request_id) throw new Error('fal did not accept the clip: ' + (body.detail ? JSON.stringify(body.detail).slice(0, 300) : res.status));
   }
   const {request_id: id} = body;

@@ -1,4 +1,4 @@
-// Toby: Motion Studio's three tools (17 Nov 2026), registered by agent-tools.mjs for bots with team files.
+// Max: Motion Studio's three tools (17 Nov 2026), registered by agent-tools.mjs for bots with team files.
 //   make_video_clip  an AI clip on fal from a checked photo (Kling 2.5 Turbo Pro by default), $1.50 a reel cap
 //   make_sound       sound effects or a music bed on ElevenLabs, several takes, measured and ranked
 //   make_reel        the finished reel from a storyboard (see reel-maker.mjs)
@@ -19,19 +19,19 @@ export function registerMotionTools({register, text, teamFolder, connections, re
   const scratch = async rel => { const dir = await abs(rel, true); await rm(dir, {recursive: true, force: true}); await mkdir(dir, {recursive: true}); return dir; };
   const saveFrom = async (from, rel) => { await teamFolder.writeBytes(null, rel, await readFile(from)); return rel; };
 
-  if (cropToRatio && ledger) register('make_video_clip', 'Make one AI video clip on fal from a checked photo in the team folder (image-to-video, Kling 2.5 Turbo Pro by default, 5 s for $0.35). It costs real money: each reel folder has a $1.50 limit, counted in code; a clip that would go over it asks Tavin in Toby first and is not made if he says no. The photo is cropped to 9:16 by code (focusX and focusY move the crop, 0.5 is the middle). The prompt must describe one clear physical action (tear, pull, lift, pour, stretch, sprinkle): on a still photo with no action the model only moves the camera. Never ask for words, faces or logos. Saves <reel>/<name>.mp4, <name>-sheet.jpg (10 frames a second, 10 across) and full-size frames every half second in <name>-frames/, and writes the cost to samples/credits-<month>.md. Look at every frame (hands at full size) before using the clip; the best moment is often 3 to 4.5 s in, and the last second may morph. If fal is slow, the result gives a request id: call again with resume set to it (no new charge), never submit again.',
+  if (cropToRatio && ledger) register('make_video_clip', 'Make one AI video clip on fal from a checked photo in the team folder (image-to-video, Kling 2.5 Turbo Pro by default, 5 s for $0.35). It costs real money: each reel folder has a $1.50 limit, counted in code; a clip that would go over it asks Tavin in Max first and is not made if he says no. The photo is cropped to 9:16 by code (focusX and focusY move the crop, 0.5 is the middle). The prompt must describe one clear physical action (tear, pull, lift, pour, stretch, sprinkle): on a still photo with no action the model only moves the camera. Never ask for words, faces or logos. Saves <reel>/<name>.mp4, <name>-sheet.jpg (10 frames a second, 10 across) and full-size frames every half second in <name>-frames/, and writes the cost to samples/credits-<month>.md. Look at every frame (hands at full size) before using the clip; the best moment is often 3 to 4.5 s in, and the last second may morph. If fal is slow, the result gives a request id: call again with resume set to it (no new charge), never submit again.',
     {reel: z.string().min(1).max(300), name: z.string().regex(/^[a-z0-9][a-z0-9/_-]{1,60}$/), image: z.string().min(1).max(300), prompt: z.string().min(30).max(1500), focusX: z.number().min(0).max(1).default(0.5), focusY: z.number().min(0).max(1).default(0.5), seconds: z.enum(['5', '10']).default('5'), model: z.enum(Object.keys(VIDEO_MODELS)).default(DEFAULT_VIDEO_MODEL), negativePrompt: z.string().max(500).optional(), resume: z.string().max(80).optional(), why: z.string().min(3).max(200)},
     async ({reel, name, image, prompt, focusX, focusY, seconds, model, negativePrompt, resume, why}) => {
       reel = clean(reel);
       if (/[—–]/.test(prompt)) return text({made: false, reason: 'Remove the em or en dash from the prompt.'});
       const key = connections.apiKey('fal');
-      if (!key) return text({made: false, reason: 'Toby has no fal connection with a key. Ask Tavin to check Connected apps.'});
+      if (!key) return text({made: false, reason: 'Max has no fal connection with a key. Ask Tavin to check Connected apps.'});
       const cost = Math.round(VIDEO_MODELS[model].perSecond * Number(seconds) * 100) / 100;
       if (!resume) {
         const b = await budgetCheck(ledger, reel, cost);
         if (!b.ok) {
           const yes = await approve(`Spend more on fal for this reel? ${reel} has used $${b.total.toFixed(2)} of its $${b.limit.toFixed(2)}; this clip costs $${cost.toFixed(2)}.`, {reel, spent: b.total, limit: b.limit, clip: name, cost, why, prompt: prompt.slice(0, 300)});
-          if (!yes) return text({made: false, reason: `Over this reel's fal limit ($${b.total.toFixed(2)} spent of $${b.limit.toFixed(2)}). Tavin said no or did not answer: do not try again. Use the clips you have, or ask Toby to ask Tavin.`});
+          if (!yes) return text({made: false, reason: `Over this reel's fal limit ($${b.total.toFixed(2)} spent of $${b.limit.toFixed(2)}). Tavin said no or did not answer: do not try again. Use the clips you have, or ask Max to ask Tavin.`});
           await ledger.raise(reel, b.after);
         }
       }
@@ -68,7 +68,7 @@ export function registerMotionTools({register, text, teamFolder, connections, re
     async ({folder, name, kind, prompt, seconds, action, takes, model, why}) => {
       folder = clean(folder);
       const key = connections.apiKey('elevenlabs');
-      if (!key) return text({made: false, reason: 'Toby has no ElevenLabs key yet. Tavin adds it in Connected apps as a custom connection named "elevenlabs" with the address https://api.elevenlabs.io.'});
+      if (!key) return text({made: false, reason: 'Max has no ElevenLabs key yet. Tavin adds it in Connected apps as a custom connection named "elevenlabs" with the address https://api.elevenlabs.io.'});
       if (kind === 'effect' && seconds > 30) return text({made: false, reason: 'Effects are 0.5 to 30 s.'});
       if (kind === 'music' && seconds < 10) return text({made: false, reason: 'Music beds are 10 to 60 s.'});
       if (model && !(kind === 'effect' ? SFX_MODELS : MUSIC_MODELS).includes(model)) return text({made: false, reason: 'Use one of: ' + (kind === 'effect' ? SFX_MODELS : MUSIC_MODELS).join(', ')});

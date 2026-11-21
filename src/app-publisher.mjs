@@ -1,4 +1,4 @@
-// Toby: publishes one companion app (a single index.html) to the GitHub repository that Vercel serves at
+// Max: publishes one companion app (a single index.html) to the GitHub repository that Vercel serves at
 // app.blueonehundred.com. Each app lives in its own folder with a random ending, so links cannot be guessed.
 import {randomInt} from 'node:crypto';
 const ALPHABET='abcdefghjkmnpqrstuvwxyz23456789';
@@ -10,7 +10,7 @@ export async function publishApp({publisher,html,name,previousFolder,fetchImpl=g
   if(!/^[a-z0-9][a-z0-9-]{2,40}$/.test(name))throw new Error('Use a short name: lowercase letters, numbers and dashes.');
   const folder=previousFolder&&/^[a-z0-9-]{4,60}$/.test(previousFolder)?previousFolder:name+'-'+randomEnding();
   const api=`https://api.github.com/repos/${publisher.owner}/${publisher.repo}/contents/${folder}/index.html`;
-  const headers={Authorization:'Bearer '+publisher.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'Toby'};
+  const headers={Authorization:'Bearer '+publisher.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'Max'};
   const fail=async(response,doing)=>{let detail='';try{detail=(await response.json()).message||'';}catch{}
     if(response.status===401||response.status===403)return new Error(`GitHub refused the app publisher token while ${doing} (${response.status}). Tavin needs to check the app_publisher connection. ${detail}`.trim());
     return new Error(`GitHub could not finish ${doing} (${response.status}). ${detail}`.trim());};

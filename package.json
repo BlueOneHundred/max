@@ -1,9 +1,9 @@
 {
   "name": "gratis-community",
-  "productName": "Toby",
+  "productName": "Max",
   "version": "0.23.2",
   "private": true,
-  "description": "Toby: Tavin's personal team of bots (a fork of the Gratis community edition)",
+  "description": "Max: Tavin's ad-pack team of bots (a copy of Toby build 45, itself a fork of the Gratis community edition)",
   "type": "module",
   "main": "src/main.cjs",
   "scripts": {

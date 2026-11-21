@@ -1,4 +1,4 @@
-// Toby: make_reel's work from a storyboard to the finished MP4s (see reel-builder.mjs for the page and mix).
+// Max: make_reel's work from a storyboard to the finished MP4s (see reel-builder.mjs for the page and mix).
 // Everything happens in a scratch folder inside the team folder (the page may only load files from there),
 // which is removed at the end so the team folder stays small.
 import {mkdir, rm, readFile, writeFile, readdir} from 'node:fs/promises';

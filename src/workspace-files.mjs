@@ -22,13 +22,13 @@ export class WorkspaceFiles {
     if(/\.pdf$/i.test(path)){
       if(size>20000000)throw new Error('Use a PDF smaller than 20 MB.');
       let binary;try{binary=await findExecutable('pdftotext');}catch{}
-      // Toby: on a computer without pdftotext a bot can still learn what it usually needs: that the PDF exists, its size and its page count.
+      // Max: on a computer without pdftotext a bot can still learn what it usually needs: that the PDF exists, its size and its page count.
       if(!binary){const {pdfPageCount}=await import('./pdf-pages.mjs');const bytes=await readFile(target);return {content:[{type:'text',text:JSON.stringify({path,pages:pdfPageCount(bytes),bytes:bytes.length,note:'The words inside this PDF cannot be read on this computer. The page count and size are real. To check the wording, read the HTML or Markdown file it was made from.'})}]};}
       const {stdout}=await execute(binary,['-layout','-f','1','-l','100',target,'-'],{timeout:15000,maxBuffer:2000000});return {content:[{type:'text',text:stdout.slice(0,180000)||'No selectable text was found in this PDF.'}]};
     }
-    // Toby: a video or sound cannot be read as text: say what it is instead of failing (17 Nov, Art Director's rehearsal).
+    // Max: a video or sound cannot be read as text: say what it is instead of failing (17 Nov, Art Director's rehearsal).
     if(/\.(mp4|mov|webm|mp3|wav|m4a|aac)$/i.test(path))return {content:[{type:'text',text:JSON.stringify({path,bytes:size,note:'This is a video or sound file: it cannot be opened as text or as a picture. To see a reel, look at its contact sheet (<name>-sheet.jpg, 5 frames a second) or a clip\'s frames (<clip>-sheet.jpg, <clip>-frames/); to know a sound, read its <name>-takes.md.'})}]};
-    // Toby: a large text file (over 200 KB) is shown in part rather than refused.
+    // Max: a large text file (over 200 KB) is shown in part rather than refused.
     if(size>200000){const text=(await readFile(target,'utf8')).replace(/data:[a-z/+.-]+;base64,[A-Za-z0-9+/=]+/g,'data:...');return {content:[{type:'text',text:text.length>180000?text.slice(0,180000)+'\n\n[This file is longer than 180,000 characters: the rest is not shown.]':text}]};}
     return {content:[{type:'text',text:await this.read(botId,path)}]};
   }

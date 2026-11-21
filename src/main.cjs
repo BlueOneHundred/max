@@ -59,7 +59,7 @@ app.whenReady().then(async () => {
   const [{Connections},{WorkspaceFiles},{CloudComputer},{agentRuntime},{ComposioSignIn}] = await Promise.all([import('./connections.mjs'),import('./workspace-files.mjs'),import('./cloud-computer.mjs'),import('./agent-tools.mjs'),import('./composio-signin.mjs')]);
   const {createSecureStorageAccess}=await import('./secure-storage.mjs');secureStorageAccess=createSecureStorageAccess(safeStorage);
   connections=await new Connections({directory:dataDir,encrypt:secureStorageAccess.encrypt,decrypt:secureStorageAccess.decrypt}).init();
-  // Toby: the fal spending record behind make_video_clip's $1.50-a-reel limit (kept here, out of the bots' reach).
+  // Max: the fal spending record behind make_video_clip's $1.50-a-reel limit (kept here, out of the bots' reach).
   spendLedger=new (await import('./video-clip.mjs')).SpendLedger(path.join(dataDir,'fal-spend.json'));
   signIn=new ComposioSignIn({directory:dataDir,binary:process.platform==='darwin'?(app.isPackaged?path.join(process.resourcesPath,'composio-cli','composio'):path.join(__dirname,'../assets/composio-cli/composio')):null,connections,openExternal:url=>shell.openExternal(url),onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:signin-state',state);}});
   connections.onChange=()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:connections-changed');};
@@ -82,8 +82,8 @@ app.whenReady().then(async () => {
     return{binding,submit:input=>t3Tasks.submit({...input,...binding,conversationId,botId:args.bot.id,sourceMessageId:args.sourceMessageId}),read:id=>t3Tasks.refresh({id,conversationId}).then(jobs=>jobs.find(j=>j.id===id)),send:(id,message)=>t3Tasks.followup({id,message,conversationId}),stop:id=>t3Tasks.cancel({id,conversationId})};
   };
   files=new WorkspaceFiles(dataDir);
-  // Toby: shared team folder (Desktop\Toby\Income) for every bot with Files on.
-  const teamFolder=new TeamFolder(process.env.TOBY_TEAM_FOLDER||(dataOverride?path.join(dataDir,'team-folder'):path.join(app.getPath('desktop'),'Toby','Income')));
+  // Max: shared team folder (Desktop\Max\Income) for every bot with Files on.
+  const teamFolder=new TeamFolder(process.env.MAX_TEAM_FOLDER||(dataOverride?path.join(dataDir,'team-folder'):path.join(app.getPath('desktop'),'Max','Team')));
   cloud=new CloudComputer(connections,{onFrame:frame=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-frame',frame);if(mobileComputer?.view?.id===frame.conversationId)mobile?.requestSync();},onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-state',controlState(state));if(mobileComputer?.view?.id===state.conversationId)mobile?.requestSync();}});
   const {MemoryService}=await import('./memory-service.mjs'),{MemoryEmbeddings}=await import('./memory-embeddings.mjs');
   const embeddings=new MemoryEmbeddings({modelPath:(app.isPackaged?path.join(process.resourcesPath,'models','sentence-encoder'):path.join(__dirname,'../assets/models/sentence-encoder'))+path.sep});
@@ -108,9 +108,9 @@ app.whenReady().then(async () => {
   await (await import('./edition-setup.mjs')).applyEdition(service,edition);
   const {Schedules}=await import('./schedules.mjs');
   schedules=await new Schedules({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,teamFolder,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:schedules-changed');}}).init();
-  // Toby build 36: package runs (one request runs a creator's whole package, bot after bot, checked between steps).
+  // Max build 36: package runs (one request runs a creator's whole package, bot after bot, checked between steps).
   const [{Pipelines},{APP_PHONE_SCRIPT,PHONE}]=await Promise.all([import('./pipeline.mjs'),import('./app-phone-check.mjs')]);
-  pipelines=await new Pipelines({directory:dataDir,teamRoot:teamFolder.root(),teamFolder,service,busy:c=>schedules.busy(c),
+  pipelines=await new Pipelines({features:edition.features,directory:dataDir,teamRoot:teamFolder.root(),teamFolder,service,busy:c=>schedules.busy(c),
     checkApp:async file=>(await require('./pdf-maker.cjs').renderPage({file:path.join(teamFolder.root(),file),width:PHONE.width,height:PHONE.height,root:teamFolder.root(),script:APP_PHONE_SCRIPT,freshStorage:true})).result}).init();
   const {ComputerControl}=await import('./computer-control.mjs');
   computerControl=new ComputerControl({service,cloud,humanComputers,epochs:computerControlEpochs,revisions:computerControlRevisions,setHuman:setHumanControl,snapshot:computerSnapshot,onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-state',state);mobile?.requestSync();}});
@@ -136,7 +136,7 @@ app.whenReady().then(async () => {
   if (app.isPackaged && !dataOverride) {
     const primary = service.snapshot().bots[0];
     if (primary?.name === 'Personal assistant' && primary.instructions === 'Be helpful, clear, and concise.')
-      await service.updateBot({ id: primary.id, name: 'Toby' });
+      await service.updateBot({ id: primary.id, name: 'Max' });
   }
   if(secureStorageAccess.locked)throw new Error('Secure storage is locked.');
   window = new BrowserWindow({ width: 1496, height: 938, minWidth: 512, minHeight: 520, show: false,
@@ -188,8 +188,8 @@ app.whenReady().then(async () => {
   deliverPageLink=openPageLink;ipcMain.handle('orbit:pages-pending-link',event=>{authorized(event);rendererPagesReady=true;const raw=pendingPageLink||process.argv.find(value=>value.startsWith('gratis://page/'));pendingPageLink=null;if(!raw)return null;try{const url=new URL(raw),match=/^\/(local|team)\/([a-f0-9-]{36})$/.exec(url.pathname);return url.protocol==='gratis:'&&url.hostname==='page'&&match?{id:match[2],remote:match[1]==='team'}:null;}catch{return null;}});
   app.on('second-instance',(_event,argv)=>{const link=argv.find(value=>value.startsWith('gratis://page/'));if(link)openPageLink(link);});
   if(app.isPackaged&&!dataOverride)app.setAsDefaultProtocolClient('gratis');
-  ipcMain.handle('orbit:template-export',async(e,{botId})=>{authorized(e);const bot=service._bot(botId),value=exportTemplate(bot);const result=await dialog.showSaveDialog(window,{title:'Export bot template',defaultPath:'bot.gratis.json',filters:[{name:'Toby bot template',extensions:['json']}]});if(result.canceled)return false;await fs.writeFile(result.filePath,JSON.stringify(value,null,2),{mode:0o600});return true;});
-  ipcMain.handle('orbit:template-preview',async e=>{authorized(e);const result=await dialog.showOpenDialog(window,{title:'Review a bot template',properties:['openFile'],filters:[{name:'Toby bot template',extensions:['json']}]});if(result.canceled)return null;const path=result.filePaths[0];if((await fs.stat(path)).size>2100000)throw new Error('Choose a template under 2.1 MB.');const bot=parseTemplate(await fs.readFile(path,'utf8'));if(bot.avatarDataUrl){const image=nativeImage.createFromDataURL(bot.avatarDataUrl);if(image.isEmpty()||image.getSize().width>2048||image.getSize().height>2048)throw new Error('Invalid template avatar.');bot.avatarDataUrl=image.toPNG().toString('base64');bot.avatarDataUrl='data:image/png;base64,'+bot.avatarDataUrl;}templateReviews.clear();const token=require('node:crypto').randomUUID();templateReviews.set(token,{bot,expires:Date.now()+600000});return {token,bot};});
+  ipcMain.handle('orbit:template-export',async(e,{botId})=>{authorized(e);const bot=service._bot(botId),value=exportTemplate(bot);const result=await dialog.showSaveDialog(window,{title:'Export bot template',defaultPath:'bot.gratis.json',filters:[{name:'Max bot template',extensions:['json']}]});if(result.canceled)return false;await fs.writeFile(result.filePath,JSON.stringify(value,null,2),{mode:0o600});return true;});
+  ipcMain.handle('orbit:template-preview',async e=>{authorized(e);const result=await dialog.showOpenDialog(window,{title:'Review a bot template',properties:['openFile'],filters:[{name:'Max bot template',extensions:['json']}]});if(result.canceled)return null;const path=result.filePaths[0];if((await fs.stat(path)).size>2100000)throw new Error('Choose a template under 2.1 MB.');const bot=parseTemplate(await fs.readFile(path,'utf8'));if(bot.avatarDataUrl){const image=nativeImage.createFromDataURL(bot.avatarDataUrl);if(image.isEmpty()||image.getSize().width>2048||image.getSize().height>2048)throw new Error('Invalid template avatar.');bot.avatarDataUrl=image.toPNG().toString('base64');bot.avatarDataUrl='data:image/png;base64,'+bot.avatarDataUrl;}templateReviews.clear();const token=require('node:crypto').randomUUID();templateReviews.set(token,{bot,expires:Date.now()+600000});return {token,bot};});
   ipcMain.handle('orbit:template-import',async(e,{token})=>{authorized(e);const review=templateReviews.get(token);templateReviews.delete(token);if(!review||review.expires<Date.now())throw new Error('Template review expired. Open it again.');return importTemplate(service,review.bot);});
   ipcMain.handle('orbit:recovery-checkpoint',async e=>{authorized(e);if(service.tasks.size)throw new Error('Stop active responses before creating a recovery checkpoint.');await service.store.flush();await memory.vault.tail;await schedules.persist;await t3Tasks.persist;await pageStore.close();await messaging?.store.close();const checkpoint=await safety.createCheckpoint(dataDir);return checkpoint;});
   ipcMain.handle('orbit:recovery-folder',async e=>{authorized(e);const directory=path.join(dataDir,'checkpoints');await fs.mkdir(directory,{recursive:true,mode:0o700});await shell.openPath(directory);return true;});
@@ -340,8 +340,8 @@ app.whenReady().then(async () => {
   if (process.env.GRATIS_TEST_HIDDEN !== '1') window.show();
 }).catch(async error => {
   await releaseDataLock?.();console.error(error);
-  if(secureStorageAccess?.locked){const {response}=await dialog.showMessageBox({type:'warning',title:'Toby is locked',message:'Secure storage could not be opened.',detail:'Your chats, settings and encrypted credentials have not been reset. Unlock your operating-system keychain, then choose Try again. Toby will not keep asking in the background.',buttons:['Quit','Try again'],defaultId:0,cancelId:0});if(response===1)app.relaunch();}
-  else dialog.showErrorBox('Toby could not start', error.message);
+  if(secureStorageAccess?.locked){const {response}=await dialog.showMessageBox({type:'warning',title:'Max is locked',message:'Secure storage could not be opened.',detail:'Your chats, settings and encrypted credentials have not been reset. Unlock your operating-system keychain, then choose Try again. Max will not keep asking in the background.',buttons:['Quit','Try again'],defaultId:0,cancelId:0});if(response===1)app.relaunch();}
+  else dialog.showErrorBox('Max could not start', error.message);
   app.exit(1);
 });
 app.on('window-all-closed', () => app.quit());

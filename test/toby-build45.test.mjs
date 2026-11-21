@@ -22,7 +22,7 @@ test('build 45: a verdict counts only when it starts its own line, never inside 
   assert.equal(hasVerdict('', 'All pictures PASSED'), false);
 });
 
-const BOTS = ['Toby', 'Marketing Kit', 'Visual Check'];
+const BOTS = ['Max', 'Marketing Kit', 'Visual Check'];
 function fakeService(names) {
   const state = {bots: names.map((name, i) => ({id: 'b' + i, name})), conversations: names.map((_, i) => ({id: 'c' + i, botId: 'b' + i, messages: [], updatedAt: i}))};
   return {state, delivered: [], async _deliver(c, input, _a, setup) { c.messages.push({id: 'm' + Math.random(), role: 'user', content: input, sourceScheduleRunId: setup.scheduled.runId, status: 'complete'}); this.delivered.push({bot: state.bots.find(b => b.id === c.botId).name, input, setup}); }};

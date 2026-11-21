@@ -1,6 +1,11 @@
 {
   "id": "community",
-  "name": "Toby",
-  "dataFolder": "Toby",
-  "bundleId": "com.blueonehundred.toby"
+  "name": "Max",
+  "dataFolder": "Max",
+  "bundleId": "com.blueonehundred.max",
+  "features": {
+    "creatorLog": false,
+    "creatorsSafetyNet": false,
+    "autoPick": false
+  }
 }
