@@ -54,6 +54,10 @@ export function parseSpec(markdown, platform) {
 export const packFormats = (spec, kind) => (spec.pack?.[kind] || []).map(id => spec.formats.find(f => f.id === id));
 
 // ---------- layout ----------
+// The business name sits bottom right beside the badge only when the word column reaches the frame's own right margin.
+// On wide frames, and where a button column narrows the words (TikTok), right-aligned would line it up with an invisible
+// edge mid-screen, so it goes under the words, on the left, in the same place on every card (Tavin, 21 Nov 2026).
+export function stacked(f) { const L = layoutBox(f); return shapeOf(f) === 'wide' || L.right > Math.max(f.safe.right, 3.4 * L.u) + 1; }
 export function shapeOf(f) { const r = f.width / f.height; return r > 1.3 ? 'wide' : r < 0.7 ? 'story' : r < 0.95 ? 'tall' : 'square'; }
 
 // Where words may go: the larger of the platform's safe zone and a small house margin. A block that reaches the right
@@ -109,6 +113,8 @@ body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiase
 .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;row-gap:${px(1.6 * u)};margin-top:${px(2.6 * u)};gap:${px(2 * u)}}
 .badge{display:inline-flex;align-items:center;gap:${px(u)};background:${C.accent};color:${C.accentText};font-weight:800;font-size:${px(2.1 * u)};padding:${px(1.1 * u)} ${px(1.7 * u)};border-radius:${px(5 * u)};white-space:nowrap}
 .badge svg{width:${px(2.4 * u)};height:${px(2.4 * u)};flex:none}
+.stack .row{flex-direction:column;align-items:flex-start;row-gap:${px(1.8 * u)}}
+.stack .brand{margin-left:0;text-align:left}
 .swipe{font-weight:800;font-size:${px(2.1 * u)};color:${C.soft};white-space:nowrap}
 .brand{margin-left:auto;text-align:right;font-family:'Archivo Black';font-size:${px(1.9 * u)};line-height:1.05;letter-spacing:.02em;white-space:nowrap}
 .brand small{display:block;font-family:'Inter';font-weight:700;font-size:${px(1.35 * u)};letter-spacing:.18em;color:${C.soft}}
@@ -144,7 +150,7 @@ export function frameHtml({item, brand, f, images = {}, id = '', hideTag = false
   const left = item.badge ? `<div class="badge a" data-k="badge">${check(C.accentText)}${esc(item.badge)}</div>` : item.swipe ? `<div class="swipe" data-k="swipe">${esc(item.swipe)}</div>` : '';
   body += `<div class="row">${left}${hideBrand ? `<div class="brand" style="visibility:hidden">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div>` : brandHtml(brand)}</div>`;
   parts.push(`<div class="txt">${body}</div>`);
-  return `<div class="f ${shape}"${id ? ` id="${id}"` : ''}>${parts.join('')}</div>`;
+  return `<div class="f ${shape}${stacked(f) ? ' stack' : ''}"${id ? ` id="${id}"` : ''}>${parts.join('')}</div>`;
 }
 
 export function stillPage({item, brand, f, images}) {
@@ -159,7 +165,7 @@ export function stillPage({item, brand, f, images}) {
 export function PACK_JS(f) {
   const L = layoutBox(f);
   return String.raw`
-var PK={W:${f.width},H:${f.height},S:${JSON.stringify(f.safe)},u:${L.u},wide:${shapeOf(f) === 'wide'}};
+var PK={W:${f.width},H:${f.height},S:${JSON.stringify(f.safe)},u:${L.u},wide:${shapeOf(f) === 'wide'},left:${L.left},right:${f.width - L.right}};
 window.packReady=(async()=>{await document.fonts.ready;
  await Promise.all([...document.querySelectorAll('.photo')].map(el=>new Promise(r=>{const m=/url\(["']?(.*?)["']?\)$/.exec(el.style.backgroundImage);if(!m)return r();const i=new Image();i.onload=()=>{el.dataset.ok='1';r();};i.onerror=()=>r();i.src=m[1];})));
  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));})();
@@ -182,6 +188,7 @@ function measure(frame,extra){const S=PK.S,problems=[],texts=[],keys=[];
   if(r.x0<S.left-0.5||r.x1>PK.W-S.right+0.5||r.y0<S.top-0.5||r.y1>PK.H-S.bottom+0.5)problems.push({kind:'outside',text:t,where:k});
   for(const b of S.blocks||[])if(r.x0<b[0]+b[2]&&r.x1>b[0]&&r.y0<b[1]+b[3]&&r.y1>b[1])problems.push({kind:'block',text:t,where:k});
   if(el.scrollWidth>el.clientWidth+1)problems.push({kind:'cut',text:t,where:k});
+  if(k==='brand'&&Math.abs(r.x0-PK.left)>2*PK.u&&Math.abs(r.x1-PK.right)>2*PK.u)problems.push({kind:'floating',text:t,where:k});
   const cs=getComputedStyle(el),own=cs.backgroundColor!=='rgba(0, 0, 0, 0)'?cs.backgroundColor:null;
   texts.push({text:t,box:[r.x0,r.y0,r.x1,r.y1],color:cs.color,size:parseFloat(cs.fontSize),own});}
  const txt=frame.querySelector('.txt');if(txt){const T=box(txt);for(const o of keys.filter(x=>['tag','label','count'].includes(x.k)))if(o.r.x0<T.x1&&o.r.x1>T.x0&&o.r.y0<T.y1&&o.r.y1>T.y0)problems.push({kind:'overlap',text:o.t,where:o.k});
@@ -209,7 +216,7 @@ export function videoPage({cards, brand, f, images, transition, seconds}) {
   const dissolve = (transition || (shapeOf(f) === 'story' ? 'dissolve' : 'swipe')) === 'dissolve';
   const tag = cards.find(c => c.tag)?.tag || '';
   const frames = cards.map((c, i) => frameHtml({item: c, brand, f, images, id: 'c' + i, hideTag: true, hideBrand: true})).join('');
-  const fixed = `<div id="fixed" style="position:absolute;inset:0;z-index:9;pointer-events:none">${tag ? `<div class="tag" data-k="tag">${esc(tag)}</div>` : ''}<div class="brand" data-k="brand" style="position:absolute">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div></div>`;
+  const fixed = `<div id="fixed" class="${shapeOf(f)}${stacked(f) ? ' stack' : ''}" style="position:absolute;inset:0;z-index:9;pointer-events:none">${tag ? `<div class="tag" data-k="tag">${esc(tag)}</div>` : ''}<div class="brand" data-k="brand" style="position:absolute">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div></div>`;
   const timeline = String.raw`
 var T={W:${f.width},starts:${JSON.stringify(starts)},durs:${JSON.stringify(durs)},SW:${CHANGE_SECONDS},DIS:${dissolve},N:${n}};
 var ease=x=>1-Math.pow(1-Math.min(Math.max(x,0),1),3),io=x=>{x=Math.min(Math.max(x,0),1);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
@@ -237,6 +244,7 @@ const SAY = {
   block: p => `"${p.text}" (${p.where}) sits under the platform's button column`,
   cut: p => `"${p.text}" is cut off`,
   overlap: p => `"${p.text}" (${p.where}) overlaps the words`,
+  floating: p => `the business name is not lined up with the words or the frame's right margin (it floats mid-frame)`,
   widow: p => `"${p.word}" sits alone on the last line of "${p.text}"`,
   image: () => 'the photo did not load',
   font: p => `the font ${p.text} did not load`,

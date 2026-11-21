@@ -133,3 +133,12 @@ test('make_pack_carousel adds the count and swipe words, and TikTok is pointed t
   const t = await tools.make_pack_carousel.h({platform: 'tiktok', folder: 'p', brand, name: 'F-carousel', cards});
   assert.equal(t.files.length, 0); assert.match(t.note, /make_pack_video/);
 });
+
+test('the business name stacks under the words on wide frames and where buttons narrow the column', () => {
+  const tiktok = P.parseSpec(sheet('tiktok'), 'tiktok').formats[0], fb = P.parseSpec(sheet('facebook'), 'facebook').formats.find(f => f.id === 'reels-stories-9x16');
+  const wide = P.parseSpec(sheet('linkedin'), 'linkedin').formats.find(f => f.id === 'video-16x9');
+  assert.equal(P.stacked(tiktok), true); assert.equal(P.stacked(wide), true); assert.equal(P.stacked(fb), false);
+  assert.match(P.stillPage({item: {headline: 'x'}, brand: {name: 'B', place: ''}, f: tiktok, images: {}}), /class="f story stack"/);
+  assert.match(P.videoPage({cards: [{headline: 'a'}, {headline: 'b'}], brand: {name: 'B'}, f: wide, images: {}}), /id="fixed" class="wide stack"/);
+  assert.match(P.packToFix([{file: 'v.mp4', problems: [{kind: 'floating', text: 'B', where: 'brand'}]}])[0], /floats mid-frame/);
+});
