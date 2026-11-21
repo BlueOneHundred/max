@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "checks": [
+    "QR claim plus explicit desktop trust",
+    "Phone-to-desktop message and streamed reply",
+    "Desktop-to-phone message",
+    "Lost command response does not duplicate the message",
+    "Reload remembers pairing",
+    "Desktop restart reconnects without QR",
+    "Offline status",
+    "Revocation denies old phone token",
+    "Chromium and WebKit paired messaging layouts",
+    "Create a chat from the phone",
+    "Switch subscription provider and model from the phone",
+    "Record and transcribe microphone audio into the draft",
+    "Shared avatar rig animates on the phone",
+    "Agent name and avatar edits match desktop",
+    "Phone attachments enter the shared bot workspace",
+    "Phone creates the same agent on desktop",
+    "Pinned agents and appearance match desktop",
+    "Reopening the avatar editor retains the new edit session",
+    "Phone deletion removes the same desktop agent",
+    "Computer start, take control, typing and handback use the shared desktop controller",
+    "Phone profile settings persist on desktop"
+  ],
+  "latency": "bounded by active polling; no measured SLA"
+}

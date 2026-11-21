@@ -1,0 +1,351 @@
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu, systemPreferences, shell, clipboard, safeStorage, nativeImage, protocol } = require('electron');
+const path = require('node:path');
+const fs = require('node:fs/promises');
+const { constants } = require('node:fs');
+const { pathToFileURL } = require('node:url');
+
+protocol.registerSchemesAsPrivileged([{scheme:'gratis-page',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
+const edition=require('../edition.json');
+app.setName(edition.name);
+const dataOverride = process.env.GRATIS_DATA_DIR || process.env.ORBIT_BOT_DATA_DIR;
+const dataDir = dataOverride || (app.isPackaged
+  ? path.join(app.getPath('appData'), edition.dataFolder, 'data') : path.resolve(__dirname, '../data'));
+app.setPath('userData', path.join(dataDir, 'electron'));
+require('node:fs').mkdirSync(app.getPath('userData'), { recursive: true, mode: 0o700 });
+if (!app.requestSingleInstanceLock()) app.exit(0);
+const humanComputers=new Set(),computerControlEpochs=new Map(),computerControlRevisions=new Map();
+function setHumanControl(id,human){if(humanComputers.has(id)!==human){human?humanComputers.add(id):humanComputers.delete(id);computerControlRevisions.set(id,(computerControlRevisions.get(id)||0)+1);}}
+const controlState=value=>({...value,control:humanComputers.has(value.conversationId)?'human':'bot',controlRevision:computerControlRevisions.get(value.conversationId)||0});
+const computerSnapshot=id=>{const snapshot=cloud.snapshot(id);return {...snapshot,state:controlState(snapshot.state)};};
+let messaging,messagingStartupError,secureStorageAccess,spendLedger;let rendererPagesReady=false;let pendingPageLink;let deliverPageLink;app.on('open-url',(event,url)=>{event.preventDefault();if(deliverPageLink)deliverPageLink(url);else pendingPageLink=url;});
+let phonePage=null,phonePageSelection=0,phonePagesMeta=[],refreshPhonePages;let pages,pageStore,pageBrowser;const pageTickets=new Map();
+let mobileTeamSelected,teamRefresh,teamRefreshVersion=0,teamConnection,teamExecutor,releaseDataLock, window, service, connections, files, cloud, signIn, memory, t3Connection, t3Tasks, t3Host, schedules, pipelines, mobile, mobileProviders, mobileDictation, computerControl, mobileComputer, closing = false, finishDraftFlush, voiceTask;
+app.on('activate',()=>{if(window&&!window.isDestroyed()){window.show();window.focus();}});
+app.on('second-instance', () => { if (window && !window.isDestroyed()) { window.show(); window.focus(); } });
+async function shutdown() {
+  if (closing) return;
+  closing = true;
+  if (window && !window.isDestroyed()) {
+    await new Promise(resolve => {
+      const timer = setTimeout(resolve, 2000);
+      finishDraftFlush = () => { clearTimeout(timer); resolve(); };
+      window.webContents.send('orbit:closing');
+    });
+  }
+  const activeVoice = voiceTask;
+  activeVoice?.controller.abort(new DOMException('App closed', 'AbortError'));
+  try { await messaging?.close(); mobileComputer?.close(); await mobileDictation?.close(); await mobile?.close(); await activeVoice?.promise?.catch(() => {}); await signIn?.cancel({preserve:true}); await schedules?.close(); await pipelines?.close(); await t3Tasks?.close(); await t3Connection?.close(); await service?.close(); await teamExecutor?.close();await teamConnection?.close(); await pageStore?.close();await pageBrowser?.close(); await cloud?.close(); } finally { await releaseDataLock?.(); app.exit(0); }
+}
+const actions = ['createBot', 'deleteBot', 'selectBot', 'newConversation', 'selectConversation', 'setDraft',
+  'createThread','renameThread','updateThreadMembers','pinThread','deleteThread','updateSettings', 'updateBot', 'duplicateBot', 'respondApproval', 'updateQueue', 'send', 'stop', 'retry'];
+function authorized(event) {
+  if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame)
+    throw new Error('Unknown renderer');
+}
+function broadcast(snapshot) {
+  if(pages){const ids=new Set(snapshot.bots.map(b=>b.id));phonePagesMeta=phonePagesMeta.filter(p=>p.remote||ids.has(p.botId)).map(p=>p.remote?p:{...p,agent:pages.agent(p.botId)});if(phonePage&&!phonePage.remote)phonePage=ids.has(phonePage.botId)?{...phonePage,agent:pages.agent(phonePage.botId)}:null;}
+  mobile?.requestSync();void messaging?.changed().catch(()=>{});
+  if (window && !window.isDestroyed()) window.webContents.send('orbit:state', snapshot);
+}
+app.whenReady().then(async () => {
+  const safety=await import('./storage-safety.mjs');releaseDataLock=await safety.acquireDataLock(dataDir);await safety.prepareStorage(dataDir);
+  if (app.isPackaged && !dataOverride) {
+    await fs.mkdir(dataDir, { recursive: true, mode: 0o700 });
+    try { await fs.copyFile(path.join(app.getPath('appData'), 'Orbit Bot', 'data', 'workspace.json'), path.join(dataDir, 'workspace.json'), constants.COPYFILE_EXCL); }
+    catch (error) { if (!['ENOENT', 'EEXIST'].includes(error.code)) throw error; }
+  }
+  const { ChatService } = await import('./chat-service.mjs');
+  const {TeamFolder}=await import('./team-folder.mjs');
+  const [{Connections},{WorkspaceFiles},{CloudComputer},{agentRuntime},{ComposioSignIn}] = await Promise.all([import('./connections.mjs'),import('./workspace-files.mjs'),import('./cloud-computer.mjs'),import('./agent-tools.mjs'),import('./composio-signin.mjs')]);
+  const {createSecureStorageAccess}=await import('./secure-storage.mjs');secureStorageAccess=createSecureStorageAccess(safeStorage);
+  connections=await new Connections({directory:dataDir,encrypt:secureStorageAccess.encrypt,decrypt:secureStorageAccess.decrypt}).init();
+  // Toby: the fal spending record behind make_video_clip's $1.50-a-reel limit (kept here, out of the bots' reach).
+  spendLedger=new (await import('./video-clip.mjs')).SpendLedger(path.join(dataDir,'fal-spend.json'));
+  signIn=new ComposioSignIn({directory:dataDir,binary:process.platform==='darwin'?(app.isPackaged?path.join(process.resourcesPath,'composio-cli','composio'):path.join(__dirname,'../assets/composio-cli/composio')):null,connections,openExternal:url=>shell.openExternal(url),onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:signin-state',state);}});
+  connections.onChange=()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:connections-changed');};
+  const [{T3Connection},{T3Tasks},{T3LocalHost}]=await Promise.all([import('./t3-connection.mjs'),import('./t3-tasks.mjs'),import('./t3-local.mjs')]);
+  const t3Changed=()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:t3-changed');};
+  t3Connection=await new T3Connection({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,openExternal:url=>shell.openExternal(url),onState:t3Changed}).init();
+  t3Host=new T3LocalHost({home:dataOverride?path.join(dataDir,'t3-host'):path.join(app.getPath('appData'),edition.dataFolder,'t3'),installer:path.join(__dirname,'assets/t3-install.sh'),onProgress:message=>t3Connection.update('installing',message)});
+  t3Tasks=await new T3Tasks({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,connection:t3Connection,onChange:t3Changed,limits:()=>service?.state?.settings?.runLimits,onResult:async job=>{
+    if(closing||!service?.state)return;const c=service.state.conversations.find(c=>c.id===job.conversationId);if(!c)return;
+    if(!c.messages.some(m=>m.sourceT3JobId===job.id)){c.messages.push({id:require('node:crypto').randomUUID(),role:'assistant',kind:'t3-result',botId:job.botId,status:'complete',createdAt:Date.now(),sourceT3JobId:job.id,content:'**T3 task '+(job.status==='completed'?'finished':job.status)+': '+job.title+'**\n\n'+(job.result||job.error||'Open Tasks to review the T3 run.')});c.updatedAt=Date.now();await service._changed();}
+  }}).init();
+  const scheduleAgent=args=>{
+    const c=service._conversation(args.conversationId),root=c.parentThreadId?service._conversation(c.parentThreadId):c;
+    const source=service.promptMessages(root).findLast(m=>m.role==='user');
+    return {list:()=>schedules.snapshot(root.id),create:input=>{if(c.parentThreadId||source?.sourceScheduleRunId)throw new Error('Only a user request to the primary bot can create a schedule.');return schedules.create({...input,conversationId:root.id,sourceMessageId:source?.id});},update:input=>{if(c.parentThreadId||source?.sourceScheduleRunId)throw new Error('Schedules can only be changed by a user request to the primary bot.');return schedules.update({...input,conversationId:root.id});},remove:input=>{if(c.parentThreadId||source?.sourceScheduleRunId)throw new Error('Schedules can only be removed by a user request to the primary bot.');return schedules.remove({...input,conversationId:root.id});}};
+  };
+  const t3Agent=args=>{
+    const binding=t3Connection.data.bindings?.[args.bot.id];if(!binding||!t3Connection.data.endpoint)return undefined;
+    const conversationId=service._conversation(args.conversationId).parentThreadId||args.conversationId;
+    return{binding,submit:input=>t3Tasks.submit({...input,...binding,conversationId,botId:args.bot.id,sourceMessageId:args.sourceMessageId}),read:id=>t3Tasks.refresh({id,conversationId}).then(jobs=>jobs.find(j=>j.id===id)),send:(id,message)=>t3Tasks.followup({id,message,conversationId}),stop:id=>t3Tasks.cancel({id,conversationId})};
+  };
+  files=new WorkspaceFiles(dataDir);
+  // Toby: shared team folder (Desktop\Toby\Income) for every bot with Files on.
+  const teamFolder=new TeamFolder(process.env.TOBY_TEAM_FOLDER||(dataOverride?path.join(dataDir,'team-folder'):path.join(app.getPath('desktop'),'Toby','Income')));
+  cloud=new CloudComputer(connections,{onFrame:frame=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-frame',frame);if(mobileComputer?.view?.id===frame.conversationId)mobile?.requestSync();},onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-state',controlState(state));if(mobileComputer?.view?.id===state.conversationId)mobile?.requestSync();}});
+  const {MemoryService}=await import('./memory-service.mjs'),{MemoryEmbeddings}=await import('./memory-embeddings.mjs');
+  const embeddings=new MemoryEmbeddings({modelPath:(app.isPackaged?path.join(process.resourcesPath,'models','sentence-encoder'):path.join(__dirname,'../assets/models/sentence-encoder'))+path.sep});
+  memory=await new MemoryService({directory:dataDir,...secureStorageAccess.keyring,embeddings,onChange:value=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:memory-changed',value);}}).init();
+  service = new ChatService({ dataDir, memory, workspaceFiles:files, onChange: broadcast,
+    onGroupMembersChanging:async({retired,retained})=>{
+      for(const seat of [...retired,...retained])computerControlEpochs.set(seat.conversationId,(computerControlEpochs.get(seat.conversationId)||0)+1);
+      const results=await Promise.allSettled([
+        ...retired.map(async seat=>{if(connections.status().cloud)await cloud.dispose(seat.botId,seat.conversationId);setHumanControl(seat.conversationId,false);}),
+        ...retained.map(async seat=>{if(connections.status().cloud&&(humanComputers.has(seat.conversationId)||cloud.serverOwners.get(seat.conversationId))){await cloud.whenIdle(seat.conversationId);await cloud.control(seat.botId,seat.conversationId,false);}setHumanControl(seat.conversationId,false);if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-state',computerSnapshot(seat.conversationId).state);}),
+      ]);
+      if(results.some(r=>r.status==='rejected'))throw new Error('Could not finish stopping a group computer. Your member changes have not been saved. Try again.');
+    },runtimeFactory:args=>agentRuntime({...args,files,teamFolder,pipelines:()=>pipelines,makePdf:input=>require('./pdf-maker.cjs').makePdf({...input,root:teamFolder.root()}),renderPage:input=>require('./pdf-maker.cjs').renderPage({root:teamFolder.root(),...input}),renderFrames:input=>require('./pdf-maker.cjs').renderFrames({root:teamFolder.root(),...input}),spendLedger,cropToRatio:async(bytes,ratio,fx=.5,fy=.5,max=1080)=>{const {nativeImage}=require('electron');const image=nativeImage.createFromBuffer(Buffer.from(bytes));if(image.isEmpty())throw new Error('That image could not be read.');const {width,height}=image.getSize();let w=width,h=Math.round(width/ratio);if(h>height){h=height;w=Math.round(height*ratio);}const x=Math.round((width-w)*fx),y=Math.round((height-h)*fy);let part=image.crop({x,y,width:w,height:h});if(w>max)part=part.resize({width:max,quality:'best'});return part.toJPEG(92);},shrinkImage:async(bytes,max=1400,quality=86)=>{const {nativeImage}=require('electron');const image=nativeImage.createFromBuffer(Buffer.from(bytes));if(image.isEmpty())throw new Error('That image could not be read.');const {width}=image.getSize();return (width>max?image.resize({width:max,quality:'good'}):image).toJPEG(quality);},cropImage:async(bytes,region,max=1568)=>{const {nativeImage}=require('electron');const image=nativeImage.createFromBuffer(Buffer.from(bytes));if(image.isEmpty())throw new Error('That image could not be read.');const {width,height}=image.getSize();const x=Math.floor(region[0]*width),y=Math.floor(region[1]*height),w=Math.max(1,Math.round((region[2]-region[0])*width)),h=Math.max(1,Math.round((region[3]-region[1])*height));let part=image.crop({x,y,width:Math.min(w,width-x),height:Math.min(h,height-y)});const shownWidth=part.getSize().width,shownHeight=part.getSize().height;if(shownWidth>max)part=part.resize({width:max,quality:'good'});return {bytes:part.toJPEG(90),width,height,shownWidth,shownHeight};},cloud,connections,canUseComputer:()=>!humanComputers.has(args.conversationId),t3:service._conversation(args.conversationId).messaging&&!service._conversation(args.conversationId).messaging.allowTools?undefined:t3Agent(args),schedules:service._conversation(args.conversationId).messaging&&!service._conversation(args.conversationId).messaging.allowTools?undefined:scheduleAgent(args),pages:service._conversation(args.conversationId).messaging?undefined:pages?.tools({botId:args.bot.id,conversationId:args.conversationId})}) });
+  await service.init();
+  try{const {MessagingRouter}=await import('./messaging-router.mjs');messaging=await new MessagingRouter({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:slack-changed');}}).init();}catch{messagingStartupError='Saved Slack settings could not be opened. Existing data was preserved.';}
+  const [{PageStore},{PageController},{PageBrowser},{pageDocument,pageStandalone,PAGE_CSP}]=await Promise.all([import('./pages.mjs'),import('./page-controller.mjs'),import('./page-browser.mjs'),import('./page-document.mjs')]);
+  const pagesChanged=()=>{void refreshPhonePages?.();mobile?.requestSync();if(window&&!window.isDestroyed())window.webContents.send('orbit:pages-changed');};
+  pageStore=await new PageStore({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,onChange:pagesChanged}).init();
+  const phonePreviewCache=new Map();function phonePagePreviews(snapshot){const previews={};for(const ref of (snapshot.selected?.messages||[]).flatMap(m=>m.pages||[]).slice(-2)){try{const p=pageStore.get(ref.id),key=p.id+':'+p.revision;if(p.html.length>120000)continue;if(!phonePreviewCache.has(key))phonePreviewCache.set(key,pageDocument(p));previews[p.id]=phonePreviewCache.get(key);}catch{}}while(phonePreviewCache.size>6)phonePreviewCache.delete(phonePreviewCache.keys().next().value);return previews;}
+  pages=new PageController({service,store:pageStore,nativeImage,onChange:pagesChanged});refreshPhonePages=async()=>{const epoch=phonePageSelection,selected=phonePage;try{phonePagesMeta=await pages.list();if(selected){const p=await pages.read({id:selected.id,remote:selected.remote});if(epoch===phonePageSelection&&phonePage)phonePage={...p,document:pageDocument(p),html:undefined};}}catch{if(epoch===phonePageSelection)phonePage=null;}mobile?.requestSync();};void refreshPhonePages();pageBrowser=new PageBrowser((id,remote,revision)=>pages.read({id,remote,revision}));
+  protocol.handle('gratis-page',async request=>{try{const url=new URL(request.url),ticket=pageTickets.get(url.searchParams.get('ticket'));if(!ticket||ticket.expires<Date.now()||ticket.id!==url.pathname.slice(1))throw Error('Expired');const page=await pages.read(ticket);return new Response(pageDocument(page),{headers:{'Content-Type':'text/html; charset=utf-8','Content-Security-Policy':PAGE_CSP+'; sandbox allow-scripts','Cache-Control':'no-store','Permissions-Policy':'camera=(), microphone=(), geolocation=(), clipboard-read=(), clipboard-write=()'}});}catch{return new Response('Page unavailable',{status:404});}});
+  await (await import('./edition-setup.mjs')).applyEdition(service,edition);
+  const {Schedules}=await import('./schedules.mjs');
+  schedules=await new Schedules({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,teamFolder,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:schedules-changed');}}).init();
+  // Toby build 36: package runs (one request runs a creator's whole package, bot after bot, checked between steps).
+  const [{Pipelines},{APP_PHONE_SCRIPT,PHONE}]=await Promise.all([import('./pipeline.mjs'),import('./app-phone-check.mjs')]);
+  pipelines=await new Pipelines({directory:dataDir,teamRoot:teamFolder.root(),teamFolder,service,busy:c=>schedules.busy(c),
+    checkApp:async file=>(await require('./pdf-maker.cjs').renderPage({file:path.join(teamFolder.root(),file),width:PHONE.width,height:PHONE.height,root:teamFolder.root(),script:APP_PHONE_SCRIPT,freshStorage:true})).result}).init();
+  const {ComputerControl}=await import('./computer-control.mjs');
+  computerControl=new ComputerControl({service,cloud,humanComputers,epochs:computerControlEpochs,revisions:computerControlRevisions,setHuman:setHumanControl,snapshot:computerSnapshot,onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-state',state);mobile?.requestSync();}});
+  const {validatePhonePages}=await import('./phone-pages.mjs');
+  const executePhonePages=async command=>{const value=validatePhonePages(command.pages);if(value.action==='close'){phonePageSelection++;phonePage=null;return;}if(value.action==='share'){await pages.share({id:value.id,spaceId:value.spaceId,participants:value.participants});await refreshPhonePages();return;}const epoch=++phonePageSelection,p=await pages.read(value);if(epoch!==phonePageSelection)return;phonePage={...p,document:pageDocument(p),html:undefined};return p.remote?undefined:p.conversationId;};
+  const {phoneTeamSnapshot,validatePhoneTeam}=await import('./phone-team.mjs');
+  const refreshTeam=()=>{teamRefreshVersion++;if(teamRefresh)return teamRefresh;teamRefresh=(async()=>{let revision;do{revision=teamRefreshVersion;try{if(teamConnection?.status().connected)await teamConnection.call('view');}catch{if(teamConnection)teamConnection.current=null;}}while(revision!==teamRefreshVersion);})().finally(()=>{teamRefresh=null;void refreshPhonePages?.();if(window&&!window.isDestroyed())window.webContents.send('orbit:team-changed');mobile?.requestSync();void teamExecutor?.drain();});return teamRefresh;};
+  const executePhoneTeam=async command=>{const value=validatePhoneTeam(command.team);if(!teamConnection?.status().connected)throw new Error('Join a team on the desktop first.');if(value.action==='select'){const view=await teamConnection.call('view');if(!view.threads.some(t=>t.id===value.threadId&&t.shared))throw new Error('Team chat not available.');mobileTeamSelected=value.threadId;}else if(value.action==='create'){const room=await teamConnection.call('startChat',{botId:value.botId,spaceId:value.spaceId,shared:true});mobileTeamSelected=room.id;}else{const job=await teamConnection.call('send',{threadId:value.threadId,text:value.text,requestId:value.requestId,respond:value.respond});mobileTeamSelected=value.threadId;if(job.id)await teamExecutor.enqueue(job.id);}await refreshTeam();return command.conversationId;};
+  const executePhonePageMessage=async command=>{const page=await pages.read({id:command.pageId});if(page.conversationId!==command.conversationId)throw Error('This page belongs to another chat.');const previous=service.pageContexts.get(command.conversationId);service.pageContexts.set(command.conversationId,page.id);try{return await executeMobile(service,command);}finally{if(previous)service.pageContexts.set(command.conversationId,previous);else service.pageContexts.delete(command.conversationId);}};
+  const {MobileComputer}=await import('./mobile-computer.mjs');
+  mobileComputer=new MobileComputer({service,cloud,control:computerControl,nativeImage,onMode:value=>mobile?.setInteractive(value),onChange:()=>mobile?.requestSync()});
+  const [{MobileBridge},{mobileSnapshot,executeMobile},{mobileAvatarThumbnails}]=await Promise.all([import('./mobile-bridge.mjs'),import('./mobile-projection.mjs'),import('./mobile-avatars.mjs')]);
+  mobileDictation=new (await import('./mobile-dictation.mjs')).MobileDictation({service,directory:dataDir,onChange:()=>mobile?.requestSync(),available:()=>!voiceTask});
+  mobileProviders=new (await import('./mobile-providers.mjs')).MobileProviders({onChange:()=>mobile?.requestSync()});
+  void mobileProviders.refresh().catch(()=>{});
+  const mobileDetails=new Map(),{attachMobileFile}=await import('./mobile-files.mjs');
+  mobile=await new MobileBridge({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,snapshot:id=>{const snapshot=mobileSnapshot(service,id,mobileProviders.snapshot());snapshot.team=phoneTeamSnapshot(teamConnection,mobileTeamSelected,nativeImage);snapshot.pages={items:phonePagesMeta.slice(0,100).map(({html,sources,...p})=>p),selected:phonePage,previews:phonePagePreviews(snapshot)};snapshot.appVersion=app.getVersion();snapshot.connections=connections.status();delete snapshot.connections.cloudEndpoint;const phoneComputer=mobileComputer.snapshot(snapshot.selected?.id);snapshot.avatars=mobileAvatarThumbnails(service,nativeImage,snapshot.selected?.id,phoneComputer||phonePage||Object.keys(snapshot.pages.previews).length?240000:600000);if(snapshot.selected){snapshot.voice=mobileDictation.snapshot(snapshot.selected.id);snapshot.selected.details=mobileDetails.get(snapshot.selected.id);snapshot.selected.computerView=phoneComputer;}return snapshot;},execute:async command=>command.kind==='send'&&command.pageId?await executePhonePageMessage(command):command.kind==='pages'?await executePhonePages(command):command.kind==='team'?await executePhoneTeam(command):command.kind==='computer'?mobileComputer.execute(command):command.kind==='profile'?await (async()=>{const c=service._conversation(command.conversationId);const entries=await files.list(c.botId);const routines=schedules.snapshot(c.id);mobileDetails.set(c.id,{files:entries.slice(0,40),routines:routines.map(r=>({id:r.id,title:r.title,enabled:r.enabled,nextRunAt:r.nextRunAt})),computer:cloud.snapshot(c.id).state?.status||'idle'});if(mobileDetails.size>40)mobileDetails.delete(mobileDetails.keys().next().value);return c.id;})():command.kind==='attach'?attachMobileFile(service,files,command):command.kind==='voice'?mobileDictation.start(command):command.kind==='voice-cancel'?mobileDictation.cancel(command):command.kind==='model'?mobileProviders.select(service,command):command.kind==='providers'?(await mobileProviders.refresh(true),command.conversationId):executeMobile(service,command),onChange:value=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:mobile-changed',value);}}).init();
+  try{const config=JSON.parse(await fs.readFile(path.join(dataDir,'mobile-provision.json'),'utf8'));if(!mobile.data.pairing)await mobile.configure(config);await fs.unlink(path.join(dataDir,'mobile-provision.json'));}catch(e){if(e.code!=='ENOENT')console.error('Mobile provisioning did not complete.');}
+  schedules.start();
+  pipelines.startTimer();
+  t3Tasks.start();
+  for(const c of service.snapshot().conversations)if(c.computerPause)setHumanControl(c.id,true);
+  if (app.isPackaged && !dataOverride) {
+    const primary = service.snapshot().bots[0];
+    if (primary?.name === 'Personal assistant' && primary.instructions === 'Be helpful, clear, and concise.')
+      await service.updateBot({ id: primary.id, name: 'Toby' });
+  }
+  if(secureStorageAccess.locked)throw new Error('Secure storage is locked.');
+  window = new BrowserWindow({ width: 1496, height: 938, minWidth: 512, minHeight: 520, show: false,
+    title: edition.name, backgroundColor: '#121212', ...(process.platform==='darwin'?{titleBarStyle:'hiddenInset',trafficLightPosition:{x:16,y:15}}:{}),
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  let workspaceFullscreen=false,priorFullscreen=false,priorSimpleFullscreen=false;
+  function setWorkspaceFullscreen(enabled){
+    if(enabled===workspaceFullscreen)return enabled;
+    if(enabled){priorFullscreen=window.isFullScreen();priorSimpleFullscreen=process.platform==='darwin'&&window.isSimpleFullScreen();}
+    workspaceFullscreen=enabled;
+    if(process.platform==='darwin'){
+      if(!priorFullscreen)window.setSimpleFullScreen(enabled||priorSimpleFullscreen);
+      window.setWindowButtonVisibility(!enabled);
+    }else if(!priorFullscreen)window.setFullScreen(enabled);
+    window.webContents.send('orbit:workspace-fullscreen',enabled);return enabled;
+  }
+  for(const [name,fn]of Object.entries({status:()=>mobile.status(),configure:v=>mobile.configure(v),connect:()=>mobile.connect(),confirm:()=>mobile.confirm(),disconnect:()=>mobile.disconnect(),qr:async()=>{const value=mobile.status().inviteUrl;if(!value)throw new Error('Create a pairing link first.');return (await import('qrcode')).default.toDataURL(value,{width:320,margin:2,errorCorrectionLevel:'M'});}}))ipcMain.handle('orbit:mobile-'+name,async(e,value)=>{authorized(e);return fn(value);});
+  ipcMain.handle('orbit:edition',e=>{authorized(e);return {id:edition.id,name:edition.name,version:app.getVersion(),platform:process.platform,arch:process.arch};});
+  ipcMain.handle('orbit:workspace-fullscreen',(e,enabled)=>{authorized(e);if(typeof enabled!=='boolean')throw new Error('Invalid fullscreen mode.');return setWorkspaceFullscreen(enabled);});
+  window.webContents.on('before-input-event',(event,input)=>{if(workspaceFullscreen&&input.type==='keyDown'&&['Escape','Esc'].includes(input.key)){event.preventDefault();setWorkspaceFullscreen(false);}});
+  window.on('close', e => { e.preventDefault(); if(schedules.items.some(i=>i.enabled)||pipelines?.runs.some(r=>r.status==='running')||mobile?.status().confirmed){window.hide();}else void shutdown(); });
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  const pageURL = pathToFileURL(path.join(__dirname, 'index.html')).href;
+  window.webContents.on('did-start-navigation',details=>{if(details.isMainFrame&&!details.isSameDocument)rendererPagesReady=false;});
+  window.webContents.on('will-navigate', (e, url) => { if (url !== pageURL) e.preventDefault(); });
+  window.webContents.session.setPermissionRequestHandler((wc, permission, cb, details) => cb(wc === window.webContents && (permission === 'fullscreen' || permission === 'media' && details.mediaTypes?.includes('audio') && details.mediaTypes.every(type => type === 'audio'))));
+  window.webContents.session.setPermissionCheckHandler((wc, permission, _origin, details) => wc === window.webContents && (permission === 'fullscreen' || permission === 'media' && details.mediaType === 'audio'));
+  window.webContents.session.webRequest.onBeforeRequest((details, cb) => {
+    if(details.resourceType==='subFrame'&&!details.url.startsWith('gratis-page:')){cb({cancel:true});return;}cb({ cancel: !['file:', 'data:', 'devtools:', 'gratis-page:'].some(p => details.url.startsWith(p)) });
+  });
+  const {exportTemplate,parseTemplate,importTemplate}=await import('./bot-template.mjs');
+  const templateReviews=new Map();
+  const {TeamConnection}=await import('./team-connection.mjs'),{TeamExecutor}=await import('./team-executor.mjs');
+  teamConnection=await new TeamConnection({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,onChange:refreshTeam}).init();
+  teamExecutor=await new TeamExecutor({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,connection:teamConnection,service}).init();teamConnection.startWatch();pages.connection=teamConnection;void refreshTeam();
+  ipcMain.handle('orbit:team-view',async e=>{authorized(e);const status=teamConnection.status();return status.connected?{...status,...await teamConnection.call('view'),executions:teamExecutor.status()}:status;});
+  ipcMain.handle('orbit:team-join',async(e,value)=>{authorized(e);await teamConnection.join(value);return teamConnection.status();});
+  ipcMain.handle('orbit:team-call',async(e,{method,args})=>{authorized(e);if(method==='cancel'){const local=teamExecutor.status().find(r=>r.jobId===args?.jobId);if(local?.conversationId)await service.stop({conversationId:local.conversationId});}return teamConnection.call(method,args);});
+  ipcMain.handle('orbit:team-share',async(e,{botId})=>{authorized(e);return teamConnection.call('createBot',{template:exportTemplate(service._bot(botId)).bot});});
+  ipcMain.handle('orbit:team-run',async(e,{jobId})=>{authorized(e);return teamExecutor.enqueue(jobId);});
+  ipcMain.handle('orbit:team-leave',async e=>{authorized(e);if(teamExecutor.active.size)throw new Error('Stop active team tasks before disconnecting.');return teamConnection.disconnect();});
+
+  let pageZoom;ipcMain.handle('orbit:pages-mode',(event,enabled)=>{authorized(event);if(typeof enabled!=='boolean')throw Error('Invalid page mode.');if(enabled&&pageZoom===undefined){pageZoom=window.webContents.getZoomFactor();window.webContents.setZoomFactor(1);}else if(!enabled&&pageZoom!==undefined){window.webContents.setZoomFactor(pageZoom);pageZoom=undefined;}return true;});
+  service.pageContexts=new Map();ipcMain.handle('orbit:pages-context',async(event,value)=>{authorized(event);const c=service._conversation(value.conversationId);if(value.id){pageStore.get(value.id,{botId:c.botId});service.pageContexts.set(c.id,value.id);}else service.pageContexts.delete(c.id);return true;});
+  const pageScope=value=>{const conversation=service._conversation(value.conversationId||service.state.activeConversationId);return{conversationId:conversation.id,botId:conversation.botId};};
+  for(const [name,fn]of Object.entries({list:()=>pages.list(),read:value=>pages.read(value),create:value=>{const{conversationId,...input}=value;return pages.create(pageScope({conversationId}),input);},update:value=>{const{conversationId,...input}=value;return pages.update(pageScope({conversationId}),input);},share:value=>pages.share(value),remove:async({id})=>{const page=pageStore.get(id);if(page.shared)await pages.share({id,spaceId:null});return pageStore.remove(id);},view:async value=>{const page=await pages.read(value),ticket=require('node:crypto').randomBytes(32).toString('hex');for(const[k,v]of pageTickets)if(v.expires<Date.now())pageTickets.delete(k);if(pageTickets.size>=100)pageTickets.delete(pageTickets.keys().next().value);pageTickets.set(ticket,{id:value.id,remote:!!value.remote,revision:value.revision,expires:Date.now()+3600000});return{...page,html:undefined,url:'gratis-page://view/'+value.id+'?ticket='+ticket};},browser:async value=>{await pages.read(value);const url=await pageBrowser.link(value.id,!!value.remote,value.revision);await shell.openExternal(url);return{url};},export:async value=>{const page=await pages.read(value),result=await dialog.showSaveDialog(window,{title:'Export page',defaultPath:page.title.replace(/[^a-z0-9 _-]/gi,'').slice(0,80)+'.html',filters:[{name:'Interactive HTML',extensions:['html']}]});if(result.canceled)return false;await fs.writeFile(result.filePath,pageStandalone(page),{mode:0o600});return true;},link:async value=>{const page=await pages.read(value),id=value.remote?page.id:page.shared?.id||page.id;return 'gratis://page/'+(value.remote||page.shared?'team/':'local/')+id;}}))ipcMain.handle('orbit:pages-'+name,async(event,value)=>{authorized(event);return fn(value||{});});
+  function openPageLink(raw){try{const url=new URL(raw);if(url.protocol!=='gratis:'||url.hostname!=='page'||url.search||url.hash)return;const match=/^\/(local|team)\/([a-f0-9-]{36})$/.exec(url.pathname);if(!match)return;if(!rendererPagesReady||!window||window.webContents.isLoadingMainFrame()){pendingPageLink=raw;return;}window.show();window.webContents.send('orbit:page-link',{id:match[2],remote:match[1]==='team'});}catch{}}
+  deliverPageLink=openPageLink;ipcMain.handle('orbit:pages-pending-link',event=>{authorized(event);rendererPagesReady=true;const raw=pendingPageLink||process.argv.find(value=>value.startsWith('gratis://page/'));pendingPageLink=null;if(!raw)return null;try{const url=new URL(raw),match=/^\/(local|team)\/([a-f0-9-]{36})$/.exec(url.pathname);return url.protocol==='gratis:'&&url.hostname==='page'&&match?{id:match[2],remote:match[1]==='team'}:null;}catch{return null;}});
+  app.on('second-instance',(_event,argv)=>{const link=argv.find(value=>value.startsWith('gratis://page/'));if(link)openPageLink(link);});
+  if(app.isPackaged&&!dataOverride)app.setAsDefaultProtocolClient('gratis');
+  ipcMain.handle('orbit:template-export',async(e,{botId})=>{authorized(e);const bot=service._bot(botId),value=exportTemplate(bot);const result=await dialog.showSaveDialog(window,{title:'Export bot template',defaultPath:'bot.gratis.json',filters:[{name:'Toby bot template',extensions:['json']}]});if(result.canceled)return false;await fs.writeFile(result.filePath,JSON.stringify(value,null,2),{mode:0o600});return true;});
+  ipcMain.handle('orbit:template-preview',async e=>{authorized(e);const result=await dialog.showOpenDialog(window,{title:'Review a bot template',properties:['openFile'],filters:[{name:'Toby bot template',extensions:['json']}]});if(result.canceled)return null;const path=result.filePaths[0];if((await fs.stat(path)).size>2100000)throw new Error('Choose a template under 2.1 MB.');const bot=parseTemplate(await fs.readFile(path,'utf8'));if(bot.avatarDataUrl){const image=nativeImage.createFromDataURL(bot.avatarDataUrl);if(image.isEmpty()||image.getSize().width>2048||image.getSize().height>2048)throw new Error('Invalid template avatar.');bot.avatarDataUrl=image.toPNG().toString('base64');bot.avatarDataUrl='data:image/png;base64,'+bot.avatarDataUrl;}templateReviews.clear();const token=require('node:crypto').randomUUID();templateReviews.set(token,{bot,expires:Date.now()+600000});return {token,bot};});
+  ipcMain.handle('orbit:template-import',async(e,{token})=>{authorized(e);const review=templateReviews.get(token);templateReviews.delete(token);if(!review||review.expires<Date.now())throw new Error('Template review expired. Open it again.');return importTemplate(service,review.bot);});
+  ipcMain.handle('orbit:recovery-checkpoint',async e=>{authorized(e);if(service.tasks.size)throw new Error('Stop active responses before creating a recovery checkpoint.');await service.store.flush();await memory.vault.tail;await schedules.persist;await t3Tasks.persist;await pageStore.close();await messaging?.store.close();const checkpoint=await safety.createCheckpoint(dataDir);return checkpoint;});
+  ipcMain.handle('orbit:recovery-folder',async e=>{authorized(e);const directory=path.join(dataDir,'checkpoints');await fs.mkdir(directory,{recursive:true,mode:0o700});await shell.openPath(directory);return true;});
+  ipcMain.handle('orbit:snapshot', e => { authorized(e); return service.snapshot(); });
+  ipcMain.handle('orbit:open-external', async (e,value) => {authorized(e);const url=new URL(value);if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw new Error('Only web links can be opened.');await shell.openExternal(url.href);});
+  ipcMain.handle('orbit:copy-text', (e,value) => {authorized(e);if(typeof value!=='string'||value.length>2000000)throw new Error('Invalid clipboard text.');clipboard.writeText(value);});
+  ipcMain.handle('orbit:bot-menu', (e, value) => {
+    authorized(e);
+    if (!service.snapshot().bots.some(bot => bot.id === value?.id)) throw new Error('Bot not found.');
+    return new Promise(resolve => {
+      const menu = Menu.buildFromTemplate([
+        { id: 'edit', label: 'Edit bot', click: () => resolve('edit') },
+        { label: 'Export bot template…', click: () => resolve('export-template') },
+        { label: 'Duplicate bot', click: () => resolve('duplicate') },
+        { label: service.snapshot().bots.find(b=>b.id===value.id)?.pinned?'Unpin bot':'Pin bot', click: () => resolve('pin') },
+        { type: 'separator' },
+        { id: 'delete', label: 'Delete bot…', click: () => resolve('delete') },
+      ]);
+      menu.popup({ window, callback: () => resolve(null) });
+    });
+  });
+  ipcMain.handle('orbit:thread-menu',(e,value)=>{
+    authorized(e);const chat=service._conversation(value?.conversationId);service._threadOpen(chat);
+    if(chat.kind!=='group'||chat.parentThreadId)throw new Error('Group chat not found.');
+    return new Promise(resolve=>{const menu=Menu.buildFromTemplate([
+      {id:'rename',label:'Rename chat…',click:()=>resolve('rename')},
+      {id:'members',label:'Edit members…',click:()=>resolve('members')},
+      {id:'pin',label:chat.pinned?'Unpin chat':'Pin chat',click:()=>resolve('pin')},
+      {type:'separator'},
+      {id:'delete',label:'Delete chat…',click:()=>resolve('delete')},
+    ]);menu.popup({window,callback:()=>resolve(null)});});
+  });
+  ipcMain.handle('orbit:memory-view',async(e,{conversationId})=>{authorized(e);return memory.view(conversationId);});
+  ipcMain.handle('orbit:memory-search',async(e,{conversationId,...value})=>{authorized(e);return memory.search(conversationId,{...value,view:true});});
+  for(const [name,operation]of Object.entries({add:(id,v)=>memory.learn(id,v,{manual:true}),edit:(id,v)=>memory.edit(id,v),confirm:(id,v)=>memory.confirm(id,v.id),forget:(id,v)=>memory.remove(id,v.id),retry:id=>memory.retry(id)}))ipcMain.handle('orbit:memory-'+name,async(e,{conversationId,...value})=>{authorized(e);await operation(conversationId,value);return memory.view(conversationId);});
+  ipcMain.handle('orbit:memory-enable',async(e,{enabled,conversationId})=>{authorized(e);await memory.enable(enabled);return memory.view(conversationId);});
+  ipcMain.handle('orbit:memory-export',async(e,{conversationId})=>{authorized(e);const view=await memory.view(conversationId),result=await dialog.showSaveDialog(window,{title:'Export these memories',defaultPath:'gratis-memory.json',filters:[{name:'JSON',extensions:['json']}]});if(result.canceled||!result.filePath)return false;await fs.writeFile(result.filePath,JSON.stringify({exportedAt:new Date().toISOString(),profile:view.profile,facts:view.facts,history:view.history,episodes:view.episodes},null,2),{mode:0o600});return true;});
+  ipcMain.handle('orbit:signin-start', e=>{authorized(e);return signIn.start();});
+  ipcMain.handle('orbit:signin-state', e=>{authorized(e);return signIn.state();});
+  ipcMain.handle('orbit:signin-cancel', e=>{authorized(e);return signIn.cancel();});
+  ipcMain.handle('orbit:signin-open', e=>{authorized(e);return signIn.reopen();});
+  const {SLACK_MANIFEST}=await import('./slack-transport.mjs');
+  for(const [name,operation]of Object.entries({status:()=>messaging?messaging.status():{connected:false,state:messagingStartupError},manifest:()=>SLACK_MANIFEST,configure:value=>messaging.configure(value),link:()=>messaging.linkCode(),channels:()=>messaging.channels(),disconnect:()=>messaging.disconnect(),review:()=>messaging.reviewDeliveries()}))ipcMain.handle('orbit:slack-'+name,(e,value)=>{authorized(e);if(!messaging&&name!=='status'&&name!=='manifest')throw Error(messagingStartupError);return operation(value);});
+  ipcMain.handle('orbit:connections', async e => {authorized(e);return connections.status();});
+  ipcMain.handle('orbit:configure-connections', async (e,value) => {authorized(e);return connections.configure(value);});
+  ipcMain.handle('orbit:connection-catalog', async (e,search) => {authorized(e);return connections.catalog(search);});
+  ipcMain.handle('orbit:connect-app', async (e,slug) => {authorized(e);const url=await connections.connect(slug);await shell.openExternal(url);return true;});
+  const t3Scope=value=>{const c=service._conversation(value?.conversationId);service._threadOpen(c);return c;};
+  for(const [name,operation]of Object.entries({view:v=>schedules.snapshot(v.conversationId),create:v=>schedules.create(v),update:v=>schedules.update(v),remove:v=>schedules.remove(v),run:v=>schedules.runNow(v)}))ipcMain.handle('orbit:schedules-'+name,async(e,value)=>{authorized(e);service._conversation(value?.conversationId);return operation(value);});
+  ipcMain.handle('orbit:t3-view',(e,value)=>{authorized(e);const c=t3Scope(value);return{connection:t3Connection.snapshot(),binding:t3Connection.data.bindings?.[c.botId]||null,jobs:t3Tasks.snapshot(c.id)};});
+  ipcMain.handle('orbit:t3-connect',async(e,value)=>{authorized(e);return t3Connection.connect({endpoint:value?.endpoint});});
+  ipcMain.handle('orbit:t3-local',async e=>{authorized(e);const host=await t3Host.setup();if(t3Connection.data.endpoint===host.endpoint){try{await t3Connection.client();return t3Connection.snapshot();}catch{}}return t3Connection.connectLocal({endpoint:host.endpoint,local:host,token:await t3Host.authorize(host)});});
+  ipcMain.handle('orbit:t3-options',async(e,value)=>{authorized(e);t3Scope(value);const [projects,capabilities]=await Promise.all([t3Connection.call('t3_project_list',{limit:100}),t3Connection.call('orchestrator_capabilities',{})]);return{projects:projects.projects,providers:capabilities.providers};});
+  ipcMain.handle('orbit:t3-threads',async(e,value)=>{authorized(e);t3Scope(value);if(typeof value.projectId!=='string')throw new Error('Choose a project.');const result=await t3Connection.call('t3_thread_list',{projectId:value.projectId,includeSubagents:false,limit:100});return result.threads.map(({threadId,title,status})=>({threadId,title,status}));});
+  ipcMain.handle('orbit:t3-project',async(e,value)=>{authorized(e);t3Scope(value);if(!t3Connection.data.local)throw new Error('Add remote folders in T3, then refresh projects.');const picked=await dialog.showOpenDialog(window,{title:'Choose a project folder for T3',properties:['openDirectory']});if(picked.canceled)return null;const folder=await fs.realpath(picked.filePaths[0]);let result=await t3Connection.call('t3_project_list',{limit:100});let project=result.projects.find(p=>p.workspaceRoot===folder);if(!project){await t3Host.registerProject(t3Connection.data.local,folder);result=await t3Connection.call('t3_project_list',{limit:100});project=result.projects.find(p=>p.workspaceRoot===folder);}if(!project)throw new Error('T3 registered the folder, but it is not visible yet. Refresh projects.');return project;});
+  ipcMain.handle('orbit:t3-bind',async(e,value)=>{authorized(e);const c=t3Scope(value);if(!value.projectId){delete t3Connection.data.bindings?.[c.botId];await t3Connection.save();return null;}const project=await t3Connection.call('t3_project_read',{projectId:value.projectId});if(value.threadId){const thread=await t3Connection.call('t3_thread_read',{threadId:value.threadId,limit:1});if(thread.thread.projectId!==project.id)throw new Error('Choose a thread from this project.');}const binding={projectId:project.id,...(value.threadId?{threadId:value.threadId}:{}),...(value.modelSelection?{modelSelection:value.modelSelection}:{})};(t3Connection.data.bindings??={})[c.botId]=binding;await t3Connection.save();return binding;});
+  ipcMain.handle('orbit:t3-open',async(e,value)=>{authorized(e);const c=t3Scope(value),job=t3Tasks.get(value.id,c.id);if(job.endpoint===t3Connection.data.endpoint&&t3Connection.data.local){await shell.openExternal(await t3Host.browserLink(t3Connection.data.local,job.threadId));return true;}const url=new URL(job.link);if(url.protocol!=='https:')throw new Error('The T3 thread link is not secure.');await shell.openExternal(url.href);return true;});
+  ipcMain.handle('orbit:t3-submit',async(e,value)=>{authorized(e);const c=t3Scope(value),binding=t3Connection.data.bindings?.[c.botId];if(!binding)throw new Error('Choose a T3 project first.');return t3Tasks.submit({...binding,conversationId:c.id,botId:c.botId,title:value.title,prompt:value.prompt});});
+  for(const [name,operation]of Object.entries({refresh:v=>t3Tasks.refresh(v),retry:v=>t3Tasks.retry(v),stop:v=>t3Tasks.cancel(v),send:v=>t3Tasks.followup(v)}))ipcMain.handle('orbit:t3-'+name,async(e,value)=>{authorized(e);t3Scope(value);return operation(value);});
+  ipcMain.handle('orbit:cloud-health', async e => {authorized(e);return cloud.health();});
+  ipcMain.handle('orbit:computer-frame', async (e,{conversationId}) => {authorized(e);return cloud.frames.get(conversationId)||null;});
+  ipcMain.handle('orbit:computer-state', (e,{conversationId}) => {authorized(e);service._threadOpen(service._conversation(conversationId));return computerSnapshot(conversationId);});
+  ipcMain.handle('orbit:computer-start',(e,value)=>{authorized(e);return computerControl.start(value);});
+  ipcMain.handle('orbit:computer-action',async(e,value)=>{authorized(e);const result=await computerControl.action(value);if(result?.clipboardText!==undefined){clipboard.writeText(result.clipboardText);return {live:true};}return result;});
+  ipcMain.handle('orbit:computer-watch',(e,{conversationId,visible})=>{authorized(e);const c=service._conversation(conversationId);if(visible)service._threadOpen(c);cloud.watch(c.botId,conversationId,!!visible);return true;});
+  ipcMain.handle('orbit:computer-control',(e,value)=>{authorized(e);return computerControl.control(value);});
+  ipcMain.handle('orbit:computer-stop',(e,value)=>{authorized(e);return computerControl.stop(value);});
+  ipcMain.handle('orbit:files-folder',async(e,{botId})=>{authorized(e);service._bot(botId);await shell.openPath(await files.target(botId));return true;});
+  ipcMain.handle('orbit:files', async(e,{botId})=>{authorized(e);service._bot(botId);return files.list(botId);});
+  ipcMain.handle('orbit:attach-files', async(e,{conversationId})=>{authorized(e);const c=service._conversation(conversationId);const result=await dialog.showOpenDialog(window,{properties:['openFile','multiSelections'],title:'Attach files to this bot'});if(result.canceled)return service.snapshot();const added=await files.import(c.botId,result.filePaths);c.draftAttachments=[...(c.draftAttachments||[]),...added].slice(0,10);return service._changed();});
+  ipcMain.handle('orbit:remove-attachment', async(e,{conversationId,path:attachment})=>{authorized(e);const c=service._conversation(conversationId);c.draftAttachments=(c.draftAttachments||[]).filter(f=>f.path!==attachment);return service._changed();});
+  ipcMain.handle('orbit:export-file', async(e,{botId,path:relative})=>{authorized(e);service._bot(botId);const source=await files.target(botId,relative);const result=await dialog.showSaveDialog(window,{defaultPath:path.basename(source)});if(!result.canceled&&result.filePath)await fs.copyFile(source,result.filePath);});
+  ipcMain.handle('orbit:codex-status', async e=>{authorized(e);return (await import('./codex-client.mjs')).getCodexStatus();});
+  ipcMain.handle('orbit:codex-models', async e=>{authorized(e);return (await import('./codex-client.mjs')).getCodexModels();});
+  ipcMain.handle('orbit:claude-status', async e => { authorized(e); const { getClaudeStatus } = await import('./claude-backend.mjs'); return getClaudeStatus(); });
+  ipcMain.handle('orbit:microphone-permission', async e => {
+    authorized(e);
+    return process.platform !== 'darwin' || systemPreferences.getMediaAccessStatus('microphone') === 'granted' || await systemPreferences.askForMediaAccess('microphone');
+  });
+  ipcMain.handle('orbit:transcribe-audio', async (e, value) => {
+    authorized(e);
+    if (!value || !/^[a-f0-9-]{36}$/i.test(value.requestId || '')) throw new Error('Invalid recording request.');
+    if (voiceTask) throw new Error('Finish or cancel the current transcription first.');
+    const { transcribeAudio } = await import('./voice.mjs');
+    const job = { id: value.requestId, controller: new AbortController(), promise: null };
+    voiceTask = job;
+    job.promise = transcribeAudio(value, { dataDir, settings: service.snapshot().settings, signal: job.controller.signal, onProgress: message => {
+      if (window && !window.isDestroyed()) window.webContents.send('orbit:voice-progress', { requestId: job.id, message });
+    } });
+    try { return await job.promise; } finally { if (voiceTask === job) voiceTask = null; }
+  });
+  ipcMain.handle('orbit:cancel-transcription', e => { authorized(e); voiceTask?.controller.abort(new DOMException('Cancelled', 'AbortError')); });
+  ipcMain.handle('orbit:ready-to-close', e => { authorized(e); finishDraftFlush?.(); });
+  for (const action of actions) ipcMain.handle('orbit:' + action, async (e, value) => {
+    authorized(e);const before=['deleteBot','deleteThread'].includes(action)?service.snapshot().conversations:[];const result=await service[action](value);
+    const retained=new Set(result.conversations.map(c=>c.id)),removed=before.filter(c=>!retained.has(c.id));
+    if(removed.length)void Promise.allSettled(removed.map(c=>{setHumanControl(c.id,false);computerControlRevisions.delete(c.id);return cloud.dispose(c.botId,c.id);}));
+    if(['createBot','duplicateBot'].includes(action)&&connections.status().cloud){const bot=result.bots.find(b=>b.id===result.activeBotId);if(bot?.capabilities?.computer!==false)void cloud.start({botId:bot.id,conversationId:result.activeConversationId}).catch(()=>{});}
+    return result;
+  });
+  ipcMain.handle('orbit:pick-image', async (e, options) => {
+    authorized(e);
+    const result = await dialog.showOpenDialog(window, { title: options?.kind === 'profile' ? 'Choose a profile photo' : 'Choose a bot avatar',
+      properties: ['openFile'], filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }] });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const filename = result.filePaths[0];
+    const handle = await fs.open(filename, 'r');
+    try {
+      if ((await handle.stat()).size > 26214400) throw new Error('Choose an image smaller than 25 MB.');
+      const bytes = await handle.readFile();
+      if (bytes.length > 26214400) throw new Error('Choose an image smaller than 25 MB.');
+      const ext = path.extname(filename).toLowerCase().slice(1);
+      const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp' }[ext];
+      if (!mime) throw new Error('Choose a PNG, JPEG, WebP, GIF, or BMP image.');
+      return { dataUrl: `data:${mime};base64,${bytes.toString('base64')}`, fileName: path.basename(filename) };
+    } finally { await handle.close(); }
+  });
+  ipcMain.handle('orbit:export-image', async (e, dataUrl) => {
+    authorized(e);
+    if (typeof dataUrl !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(dataUrl) || dataUrl.length > 2097152)
+      throw new Error('Invalid PNG');
+    const result = await dialog.showSaveDialog(window, { title: 'Export avatar', defaultPath: 'bot-avatar.png',
+      filters: [{ name: 'PNG image', extensions: ['png'] }] });
+    if (result.canceled || !result.filePath) return false;
+    await fs.writeFile(result.filePath, Buffer.from(dataUrl.split(',')[1], 'base64'));
+    return true;
+  });
+  ipcMain.handle('orbit:export-data', async (e, kind) => {
+    authorized(e);
+    if (!['conversation','workspace'].includes(kind)) throw new Error('Unknown export type');
+    const snapshot = service.snapshot();
+    const conversation = snapshot.conversations.find(c => c.id === snapshot.activeConversationId);
+    const json = kind === 'workspace';
+    const result = await dialog.showSaveDialog(window,{title:json?'Export local workspace':'Export conversation',defaultPath:json?'gratis-workspace.json':'conversation.txt',filters:[{name:json?'JSON':'Text',extensions:[json?'json':'txt']}]});
+    if(result.canceled || !result.filePath) return false;
+    const content = json ? JSON.stringify({...snapshot,pages:pageStore.state},null,2) : conversation.messages.map(m => `${m.role.toUpperCase()}\n${m.content}`).join('\n\n');
+    await fs.writeFile(result.filePath,content,'utf8'); return true;
+  });
+  nativeTheme.on('updated', () => { if (!window.isDestroyed()) window.webContents.send('orbit:theme', nativeTheme.shouldUseDarkColors); });
+  ipcMain.handle('orbit:theme', e => { authorized(e); return nativeTheme.shouldUseDarkColors; });
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: edition.name, submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'quit' }] },
+    { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+    { label: 'View', submenu: [{ role: 'reload' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { role: 'togglefullscreen' }] }
+  ]));
+  await window.loadURL(pageURL);
+  window.webContents.setZoomFactor(1.2);
+  if (process.env.GRATIS_TEST_HIDDEN !== '1') window.show();
+}).catch(async error => {
+  await releaseDataLock?.();console.error(error);
+  if(secureStorageAccess?.locked){const {response}=await dialog.showMessageBox({type:'warning',title:'Toby is locked',message:'Secure storage could not be opened.',detail:'Your chats, settings and encrypted credentials have not been reset. Unlock your operating-system keychain, then choose Try again. Toby will not keep asking in the background.',buttons:['Quit','Try again'],defaultId:0,cancelId:0});if(response===1)app.relaunch();}
+  else dialog.showErrorBox('Toby could not start', error.message);
+  app.exit(1);
+});
+app.on('window-all-closed', () => app.quit());
+app.on('before-quit', e => {
+  if (closing || !service) return;
+  e.preventDefault(); void shutdown();
+});
