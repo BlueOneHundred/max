@@ -207,7 +207,7 @@ export const HIDE_WORDS_CSS = '.f *{color:transparent!important;text-shadow:none
 
 // ---------- video ----------
 // Cards change by swipe on feed shapes and by dissolve on 9:16 (decision 37); card 1's words are on screen from the first
-// frame (decision 38); the top label and the business name stay fixed (decision 39). One card alone (a still ad made
+// frame (decision 38); the business name stays fixed, and the top label too when all cards share it (decision 39, build 7). One card alone (a still ad made
 // into a short video for TikTok) holds still with a slow zoom.
 export function videoTiming(n, total = VIDEO_SECONDS) {
   if (n === 1) return {durs: [total], starts: [0], total};
@@ -217,8 +217,12 @@ export function videoTiming(n, total = VIDEO_SECONDS) {
 export function videoPage({cards, brand, f, images, transition, seconds}) {
   const n = cards.length, {durs, starts, total} = videoTiming(n, seconds || (n === 1 ? AD_VIDEO_SECONDS : VIDEO_SECONDS));
   const dissolve = (transition || (shapeOf(f) === 'story' ? 'dissolve' : 'swipe')) === 'dissolve';
-  const tag = cards.find(c => c.tag)?.tag || '';
-  const frames = cards.map((c, i) => frameHtml({item: c, brand, f, images, id: 'c' + i, hideTag: true, hideBrand: true})).join('');
+  // Build 7 (22 Nov 2026, JJBM): the top label stays fixed only when every card has the same one. When the cards' labels
+  // differ (TREE REMOVAL, LAWN CARE, HARDSCAPING), each card keeps its own label, which moves with its card, so a label
+  // never sits over a photo of other work. The business name always stays fixed.
+  const sameTag = new Set(cards.map(c => c.tag || '')).size <= 1;
+  const tag = sameTag ? (cards.find(c => c.tag)?.tag || '') : '';
+  const frames = cards.map((c, i) => frameHtml({item: c, brand, f, images, id: 'c' + i, hideTag: sameTag, hideBrand: true})).join('');
   const fixed = `<div id="fixed" class="${shapeOf(f)}${stacked(f) ? ' stack' : ''}" style="position:absolute;inset:0;z-index:9;pointer-events:none">${tag ? `<div class="tag" data-k="tag">${esc(tag)}</div>` : ''}<div class="brand" data-k="brand" style="position:absolute">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div></div>`;
   const timeline = String.raw`
 var T={W:${f.width},starts:${JSON.stringify(starts)},durs:${JSON.stringify(durs)},SW:${CHANGE_SECONDS},DIS:${dissolve},N:${n}};

@@ -10,6 +10,10 @@ import {imageSize} from './book-pictures.mjs';
 import {contrastProblems} from './carousel-builder.mjs';
 import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
 
+// Max build 7 (22 Nov 2026): JJBM's busy photos (branches, leaves, gravel) made a 15 s 1440 px video over 20 MB and the save failed.
+// The encoder now keeps quality (CRF 18) but never goes over 8 Mbit/s (a 15 s video stays near 15 MB; Meta and others re-encode
+// uploads to far less), and finished pack videos may be saved up to 100 MB as a safety net.
+export const VIDEO_MAXRATE = '8M', VIDEO_BUFSIZE = '16M', VIDEO_MAX_FILE_BYTES = 100000000;
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a colour like #1B3A9E');
 export const brandSchema = z.object({
   primary: hex.describe('Main brand colour (the top label text)'), accent: hex.describe('Accent colour (badges, step circles)'), accentText: hex.optional(),
@@ -68,14 +72,14 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
     await teamFolder.writeBytes(null, scratch + '/video.html', Buffer.from(html));
     const frames = Math.round(seconds * FPS), tmp = scratchDir + '/video.mp4';
     let child;
-    const encoding = ffmpeg(['-y', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-r', String(FPS), tmp], {signal, onSpawn: c => { child = c; }});
+    const encoding = ffmpeg(['-y', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-maxrate', VIDEO_MAXRATE, '-bufsize', VIDEO_BUFSIZE, '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-r', String(FPS), tmp], {signal, onSpawn: c => { child = c; }});
     encoding.catch(() => {});
     const write = buf => new Promise((resolve, reject) => { if (!child || child.stdin.destroyed) return reject(new Error('The video encoder stopped.')); child.stdin.write(buf, e => e ? reject(e) : resolve()); });
     const holds = new Set(holdFrames(cards, seconds)), kept = [];
     const onFrame = async (buf, i) => { if (holds.has(i)) kept.push(buf); await write(buf); };
     const {result} = await renderFrames({file: await teamFolder.target(null, scratch + '/video.html'), width: f.width, height: f.height, root: teamFolder.root(), signal, frames, setup: VIDEO_SETUP, frameScript: videoFrameScript, onFrame, quality: 92});
     child.stdin.end(); await encoding;
-    await teamFolder.writeBytes(null, rel, await readFile(tmp));
+    await teamFolder.writeBytes(null, rel, await readFile(tmp), {maxFileBytes: VIDEO_MAX_FILE_BYTES});
     // A contact sheet of every card at its fullest, so Visual Check can look at the video (it cannot play it).
     const sheet = contactSheetHtml(kept.map(b => imageDataUrl(b, 'x.jpg')), f.width, f.height), sheetRel = rel.replace(/\.mp4$/, '-sheet.jpg');
     await teamFolder.writeBytes(null, scratch + '/sheet.html', Buffer.from(sheet.html));

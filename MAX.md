@@ -31,6 +31,11 @@ Max and Toby never share anything: different app, app ID, data folder, team fold
 - Build 5: make_pack_ad (adVideo) and make_pack_video also save `<file>-sheet.jpg`, a contact sheet of every card at its fullest, so Visual Check can look at videos.
 - `team/prompts/`: Max's shared rules and bot prompts (first 7 bots), the platform-bot template and generator, build.py (assembles `built/<bot>.txt`) and the setup sheet. The working copy is `Desktop\Max\prompts\`.
 
+## Max build 7 (22 Nov 2026): carousel videos for busy photos
+- **Video size.** JJBM's carousel video (busy photos: branches, leaves, gravel) came out at 24 MB on Facebook 4:5, and the app refused to save any file over 20 MB, so Facebook Bot's `make_pack_video` failed twice. The encoder keeps CRF 18 but now caps the bitrate at 8 Mbit/s (`VIDEO_MAXRATE`, `VIDEO_BUFSIZE` in `src/pack-tools.mjs`): JJBM's 15 s videos are 13.4 to 13.9 MB, still sharp (platforms re-encode uploads to far less). `WorkspaceFiles.writeBytes` takes an optional `{maxFileBytes}` (at most 100 MB); only finished pack videos use it, everything else keeps the 20 MB limit.
+- **Top label in videos.** The top label stays fixed only when every card has the same one (Advanced Roofing). When labels differ (JJBM: TREE REMOVAL, LAWN CARE, LANDSCAPING, HARDSCAPING), each card keeps its own label and it moves with its card, so a label never sits over a photo of other work. The business name always stays fixed.
+- Tests: 3 new; full suite 455 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

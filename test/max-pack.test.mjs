@@ -155,3 +155,35 @@ test('a word label without a step number becomes a pill', () => {
   const h = P.stillPage({item: {stepLabel: 'TREE WORK', headline: 'Tree removal.'}, brand: {name: 'J'}, f, images: {}});
   assert.match(h, /<div class="kick a" data-a="step" data-k="kick">TREE WORK<\/div>/); assert.doesNotMatch(h, /stepnum/);
 });
+
+// Max build 7 (22 Nov 2026): JJBM's carousel video was over 20 MB and could not be saved.
+test('build 7: pack videos may be saved up to 100 MB; other files keep the 20 MB limit', async () => {
+  const {TeamFolder} = await import('../src/team-folder.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'max-b7-')), team = new TeamFolder(dir);
+  const big = Buffer.alloc(25000000, 1);
+  await assert.rejects(team.writeBytes(null, 'a/too-big.mp4', big), /smaller than 20 MB/);
+  const saved = await team.writeBytes(null, 'a/video.mp4', big, {maxFileBytes: 100000000});
+  assert.equal(saved.bytes, 25000000);
+  await assert.rejects(team.writeBytes(null, 'a/huge.mp4', big, {maxFileBytes: 10 ** 10}).then(() => team.writeBytes(null, 'a/huger.mp4', Buffer.alloc(100000001, 1), {maxFileBytes: 10 ** 10})), /smaller than 100 MB/);
+});
+
+test('build 7: the video encoder caps the bitrate so a 15 s video stays near 15 MB', async () => {
+  const T = await import('../src/pack-tools.mjs');
+  assert.equal(T.VIDEO_MAXRATE, '8M');
+  assert.equal(T.VIDEO_MAX_FILE_BYTES, 100000000);
+  const src = readFileSync(new URL('../src/pack-tools.mjs', import.meta.url), 'utf8');
+  assert.match(src, /'-maxrate', VIDEO_MAXRATE, '-bufsize', VIDEO_BUFSIZE/);
+  assert.match(src, /writeBytes\(null, rel, await readFile\(tmp\), \{maxFileBytes: VIDEO_MAX_FILE_BYTES\}\)/);
+});
+
+test('build 7: a video keeps the top label fixed only when every card shares it', () => {
+  const spec = P.parseSpec(sheet('facebook'), 'facebook'), f = P.packFormats(spec, 'carouselVideo')[0];
+  const brand = {primary: '#0256C6', accent: '#007018', panel: '#042054', name: 'JJBM', place: 'ANSONIA'};
+  const fixedPart = html => html.slice(html.indexOf('<div id="fixed"'), html.indexOf('<script>'));
+  const differ = P.videoPage({cards: [{tag: 'TREE REMOVAL · ANSONIA', headline: 'Trees.'}, {tag: 'LAWN CARE · ANSONIA', headline: 'Lawns.'}], brand, f, images: {}});
+  assert.ok(!fixedPart(differ).includes('class="tag"'), 'no fixed label when the labels differ');
+  assert.ok(differ.includes('TREE REMOVAL · ANSONIA') && differ.includes('LAWN CARE · ANSONIA'), 'each card keeps its own label');
+  const same = P.videoPage({cards: [{tag: 'ROOFING · LEEDS', headline: 'One.'}, {tag: 'ROOFING · LEEDS', headline: 'Two.'}], brand, f, images: {}});
+  assert.ok(fixedPart(same).includes('ROOFING · LEEDS'), 'one shared label stays fixed');
+  assert.equal(same.split('ROOFING · LEEDS').length - 1, 1, 'and is drawn once');
+});
