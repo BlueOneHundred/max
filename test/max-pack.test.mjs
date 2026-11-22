@@ -195,3 +195,17 @@ test('build 8: a lone last word counts by width, not letters, and the counter ha
   const css = P.packCss(P.packFormats(P.parseSpec(sheet('facebook'), 'facebook'), 'carousel')[0], {primary: '#0256C6', accent: '#007018', panel: '#042054', name: 'J'});
   assert.match(css, /\.count\{[^}]*background:rgba\(4,32,84,\.92\)/, 'counter pill in the panel colour');
 });
+
+test('build 9: side "right" moves the words to the right on wide shapes only', () => {
+  const brand = {primary: '#0256C6', accent: '#007018', panel: '#042054', name: 'JJBM', place: 'ANSONIA'};
+  const wide = P.packFormats(P.parseSpec(sheet('linkedin'), 'linkedin'), 'carouselVideo').find(f => P.shapeOf(f) === 'wide');
+  const square = P.packFormats(P.parseSpec(sheet('linkedin'), 'linkedin'), 'carouselVideo').find(f => P.shapeOf(f) === 'square');
+  assert.match(P.frameHtml({item: {headline: 'A', side: 'right'}, brand, f: wide}), /class="f wide right stack"/);
+  assert.match(P.frameHtml({item: {headline: 'A', side: 'right'}, brand, f: square}), /class="f square"/);
+  assert.match(P.packCss(wide, brand), /\.wide\.right \.txt\{left:auto;right:/);
+  const fixedPart = html => html.slice(html.indexOf('<div id="fixed"'), html.indexOf('<script>'));
+  const mixed = P.videoPage({cards: [{headline: 'One', side: 'right'}, {headline: 'Two'}], brand, f: wide, images: {}});
+  assert.ok(!fixedPart(mixed).includes('class="brand"'), 'mixed sides: the name moves with each card');
+  const same = P.videoPage({cards: [{headline: 'One'}, {headline: 'Two'}], brand, f: wide, images: {}});
+  assert.ok(fixedPart(same).includes('class="brand"'), 'same side: the name stays fixed');
+});

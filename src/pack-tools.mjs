@@ -26,6 +26,7 @@ const focus = z.union([z.string().max(20), z.object({square: z.string().max(20).
 const words = {
   photo: z.string().min(1).max(300).describe('A photo in the team folder: the business\'s own, from clients/<business>/photos/'),
   focus: focus.optional().describe('Crop position "x% y%" (50% 50% is the middle), or one per shape {square, tall, story, wide}'),
+  side: z.enum(['left', 'right']).optional().describe('Wide 16:9 shapes only: "right" puts the words, the dark fade and the business name on the right, for a photo whose subject is on the left. Other shapes ignore it.'),
   tag: z.string().max(48).optional().describe('Short top label, e.g. "ROOF RESTORATION · PERTH & ROCKINGHAM"'),
   headline: z.string().max(60).optional(), headlineSize: z.number().min(3).max(12).optional(),
   big: z.string().max(12).optional().describe('A large number line, e.g. "20-YEAR"'), bigSize: z.number().min(6).max(20).optional(), big2: z.string().max(40).optional(),

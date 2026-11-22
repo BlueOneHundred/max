@@ -41,6 +41,11 @@ Max and Toby never share anything: different app, app ID, data folder, team fold
 - **"1 / 5" counter**: a solid pill in the brand's panel colour (92%), with a soft shadow. The old 60% black vanished on dark branches (JJBM card 1).
 - Checked on JJBM (all 5 platforms, every ad and carousel: all PASSED) and Advanced Roofing (Facebook, Instagram, LinkedIn, X: all PASSED). Tests: 1 new; full suite 456 pass, 1 skipped.
 
+## Max build 9 (22 Nov 2026): words on the right for wide shapes
+- On 16:9 the words and dark fade always sat on the left, so a photo with its subject on the left lost it (JJBM's tree-work card: the climber was a dim shape; Visual Check failed both 16:9 videos). An ad or card may now say `side: "right"`: on wide shapes only, the words, the fade and the business name move to the right. Other shapes ignore it.
+- In a video, the business name stays fixed only when every card uses the same side; otherwise each card carries its own name under its words (as build 7 did for labels). The "floating" check also accepts a name lined up with the words.
+- Checked: JJBM LinkedIn videos with the tree-work card on the right (climber clear; all PASSED); JJBM and Advanced Roofing stills unchanged and PASSED. Tests: 1 new; full suite 457 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
