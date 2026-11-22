@@ -187,3 +187,11 @@ test('build 7: a video keeps the top label fixed only when every card shares it'
   assert.ok(fixedPart(same).includes('ROOFING · LEEDS'), 'one shared label stays fixed');
   assert.equal(same.split('ROOFING · LEEDS').length - 1, 1, 'and is drawn once');
 });
+
+test('build 8: a lone last word counts by width, not letters, and the counter has a solid pill', () => {
+  const js = P.PACK_JS(P.packFormats(P.parseSpec(sheet('instagram'), 'instagram'), 'ad')[0]);
+  assert.match(js, /end\.words\.length===1&&\(end\.right-end\.left\)<0\.5\*\(before\.right-before\.left\)/, 'short last line under half the line above');
+  assert.doesNotMatch(js, /length<=6\?end\.words\[0\]/, 'the old 6-letter limit is gone ("Connecticut." was missed)');
+  const css = P.packCss(P.packFormats(P.parseSpec(sheet('facebook'), 'facebook'), 'carousel')[0], {primary: '#0256C6', accent: '#007018', panel: '#042054', name: 'J'});
+  assert.match(css, /\.count\{[^}]*background:rgba\(4,32,84,\.92\)/, 'counter pill in the panel colour');
+});

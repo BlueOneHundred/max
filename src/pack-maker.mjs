@@ -5,6 +5,10 @@
 // always inside that platform's safe zone and clear of any button column (TikTok).
 // After drawing, PACK_JS measures where every word, badge and label really landed. Anything in a safe zone,
 // under a button column, cut off, overlapping or left as a lone last word is a problem, and the file is not passed.
+// Build 8 (22 Nov 2026, JJBM): a single word alone on a last line counts when that line is under half as wide as the
+// line above ("Connecticut." was missed: only words of 6 letters or fewer counted; "Masonry and / hardscaping." is
+// fine), so the tool rebalances the lines first. The "1 / 5" counter is a solid pill in the
+// brand's panel colour (60% black vanished on dark branches).
 // The look is the one Tavin approved for the free packs (session 1 to 3): Archivo Black headlines, Inter words.
 import {packFonts} from './book-style.mjs';
 
@@ -97,7 +101,7 @@ body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiase
 .shade{position:absolute;left:0;right:0;bottom:0;top:${px(f.height * 0.45)};background:linear-gradient(to bottom,rgba(${P},0) 0%,rgba(${P},.78) 28%,rgba(${P},.94) 55%)}
 .wide .shade{top:0;right:auto;width:${px(f.width * 0.74)};background:linear-gradient(to right,rgba(${P},.95) 0%,rgba(${P},.88) 55%,rgba(${P},0) 100%)}
 .tag{position:absolute;top:${px(L.top)};left:${px(L.left)};background:#fff;color:${C.primary};font-weight:800;letter-spacing:.06em;font-size:${px(1.75 * u)};padding:${px(u)} ${px(1.6 * u)};border-radius:${px(0.6 * u)};box-shadow:0 4px 18px rgba(0,0,0,.25);white-space:nowrap;z-index:4}
-.count{position:absolute;top:${px(L.top)};right:${px(L.right)};background:rgba(0,0,0,.6);color:#fff;font-weight:800;font-size:${px(1.75 * u)};padding:${px(u)} ${px(1.5 * u)};border-radius:${px(5 * u)};white-space:nowrap;z-index:4}
+.count{position:absolute;top:${px(L.top)};right:${px(L.right)};background:rgba(${P},.92);color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.25);font-weight:800;font-size:${px(1.75 * u)};padding:${px(u)} ${px(1.5 * u)};border-radius:${px(5 * u)};white-space:nowrap;z-index:4}
 .label{position:absolute;font-family:'Archivo Black';font-size:${px(3 * u)};padding:${px(0.8 * u)} ${px(1.6 * u)};border-radius:${px(0.6 * u)};letter-spacing:.04em;box-shadow:0 6px 24px rgba(0,0,0,.35);white-space:nowrap;z-index:3}
 .txt{position:absolute;left:${px(L.left)};right:${px(L.right)};bottom:${px(L.bottom)};z-index:3}
 .wide .txt{right:auto;width:${px(wideWidth)}}
@@ -182,9 +186,9 @@ function fit(frame){const main=frame.querySelector('[data-main]'),txt=frame.quer
  for(const el of frame.querySelectorAll('.h,.q,.sub')){if(widow(el)){el.style.textWrap='balance';if(widow(el))el.style.textWrap='pretty';}}
  const shade=frame.querySelector('.shade');if(shade&&!PK.wide)shade.style.top=Math.max(0,box(txt).y0-12*PK.u)+'px';
  return size<start-0.5?{text:main.textContent.trim().slice(0,60),from:Math.round(start),to:Math.round(size)}:null;}
-function words(el){const out=[];const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){const re=/\S+/g;let m;while((m=re.exec(n.textContent))){const r=document.createRange();r.setStart(n,m.index);r.setEnd(n,m.index+m[0].length);const b=r.getClientRects()[0];if(b)out.push({word:m[0],top:Math.round(b.top)});}}return out;}
-function widow(el){const ws=words(el);if(ws.length<3)return null;const ls=[];for(const w of ws){const l=ls[ls.length-1];if(l&&Math.abs(l.top-w.top)<8)l.words.push(w.word);else ls.push({top:w.top,words:[w.word]});}
- const end=ls[ls.length-1];return ls.length>1&&end.words.length===1&&end.words[0].replace(/[^A-Za-z0-9]/g,'').length<=6?end.words[0]:null;}
+function words(el){const out=[];const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){const re=/\S+/g;let m;while((m=re.exec(n.textContent))){const r=document.createRange();r.setStart(n,m.index);r.setEnd(n,m.index+m[0].length);const b=r.getClientRects()[0];if(b)out.push({word:m[0],top:Math.round(b.top),left:b.left,right:b.right});}}return out;}
+function widow(el){const ws=words(el);if(ws.length<3)return null;const ls=[];for(const w of ws){const l=ls[ls.length-1];if(l&&Math.abs(l.top-w.top)<8){l.words.push(w.word);l.left=Math.min(l.left,w.left);l.right=Math.max(l.right,w.right);}else ls.push({top:w.top,words:[w.word],left:w.left,right:w.right});}
+ const end=ls[ls.length-1],before=ls[ls.length-2];return ls.length>1&&end.words.length===1&&(end.right-end.left)<0.5*(before.right-before.left)?end.words[0]:null;}
 function measure(frame,extra){const S=PK.S,problems=[],texts=[],keys=[];
  const els=[...frame.querySelectorAll('[data-k]'),...(extra||[])].filter(el=>getComputedStyle(el).visibility!=='hidden'&&el.getClientRects().length);
  for(const el of els){const r=box(el),t=el.textContent.trim().slice(0,60),k=el.dataset.k;keys.push({k,r,t});

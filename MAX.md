@@ -36,6 +36,11 @@ Max and Toby never share anything: different app, app ID, data folder, team fold
 - **Top label in videos.** The top label stays fixed only when every card has the same one (Advanced Roofing). When labels differ (JJBM: TREE REMOVAL, LAWN CARE, LANDSCAPING, HARDSCAPING), each card keeps its own label and it moves with its card, so a label never sits over a photo of other work. The business name always stays fixed.
 - Tests: 3 new; full suite 455 pass, 1 skipped.
 
+## Max build 8 (22 Nov 2026): lone long words and the counter pill
+- **Lone last word.** The self-check counted a word alone on the last line only if it had 6 letters or fewer, so JJBM's Ad B 9:16 sub ended with "Connecticut." alone and passed (Instagram Bot caught it by eye). Now a single last word counts when its line is under half as wide as the line above, whatever its length; the tool rebalances the lines first (Ad B now reads "Over a decade of tree and / landscape work across Connecticut."). Two even lines such as "Masonry and / hardscaping." still pass.
+- **"1 / 5" counter**: a solid pill in the brand's panel colour (92%), with a soft shadow. The old 60% black vanished on dark branches (JJBM card 1).
+- Checked on JJBM (all 5 platforms, every ad and carousel: all PASSED) and Advanced Roofing (Facebook, Instagram, LinkedIn, X: all PASSED). Tests: 1 new; full suite 456 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
