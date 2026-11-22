@@ -99,7 +99,7 @@ body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiase
 .f{position:absolute;inset:0;overflow:hidden;background:#111}
 .photo{position:absolute;inset:0;background-size:cover;background-repeat:no-repeat;filter:saturate(1.08) contrast(1.04);transform-origin:50% 50%}
 .shade{position:absolute;left:0;right:0;bottom:0;top:${px(f.height * 0.45)};background:linear-gradient(to bottom,rgba(${P},0) 0%,rgba(${P},.78) 28%,rgba(${P},.94) 55%)}
-.wide .shade{top:0;right:auto;width:${px(f.width * 0.74)};background:linear-gradient(to right,rgba(${P},.95) 0%,rgba(${P},.88) 55%,rgba(${P},0) 100%)}
+.wide .shade{top:0;right:0;width:auto;background:radial-gradient(ellipse 85% 105% at 0% 100%,rgba(${P},.95) 0%,rgba(${P},.88) 45%,rgba(${P},.55) 68%,rgba(${P},0) 100%)}
 .tag{position:absolute;top:${px(L.top)};left:${px(L.left)};background:#fff;color:${C.primary};font-weight:800;letter-spacing:.06em;font-size:${px(1.75 * u)};padding:${px(u)} ${px(1.6 * u)};border-radius:${px(0.6 * u)};box-shadow:0 4px 18px rgba(0,0,0,.25);white-space:nowrap;z-index:4}
 .count{position:absolute;top:${px(L.top)};right:${px(L.right)};background:rgba(${P},.92);color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.25);font-weight:800;font-size:${px(1.75 * u)};padding:${px(u)} ${px(1.5 * u)};border-radius:${px(5 * u)};white-space:nowrap;z-index:4}
 .label{position:absolute;font-family:'Archivo Black';font-size:${px(3 * u)};padding:${px(0.8 * u)} ${px(1.6 * u)};border-radius:${px(0.6 * u)};letter-spacing:.04em;box-shadow:0 6px 24px rgba(0,0,0,.35);white-space:nowrap;z-index:3}
