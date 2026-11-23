@@ -46,6 +46,12 @@ Max and Toby never share anything: different app, app ID, data folder, team fold
 - In a video, the business name stays fixed only when every card uses the same side; otherwise each card carries its own name under its words (as build 7 did for labels). The "floating" check also accepts a name lined up with the words.
 - Checked: JJBM LinkedIn videos with the tree-work card on the right (climber clear; all PASSED); JJBM and Advanced Roofing stills unchanged and PASSED. Tests: 1 new; full suite 457 pass, 1 skipped.
 
+## Max build 10 (23 Nov 2026): the 16:9 fade only behind the words
+- **Build 9 is withdrawn** (do not install it). Moving one card's words to the right breaks the flow of the whole video (Tavin, 22 Nov 12:31: a video or carousel is one sequence; every card keeps the same layout).
+- On 16:9 the dark fade now comes from the bottom-left corner only, behind the words, the same on every card; the top-left and the right of the photo stay bright. Before, a band covered the left 74% of the frame and hid subjects on the left (JJBM's tree-work climber). One CSS line in src/pack-maker.mjs (`.wide .shade`). Other shapes are unchanged.
+- Build 9's `side` option is removed completely: the pack-tools schema, the `right` class, the `.wide.right` CSS, the video's mixed-sides business name and the build 9 test. Build 9's change to the "floating" check is also reverted (it was only needed for words on the right), so the code is build 8 plus the new fade.
+- Checked with the real make_pack_video on JJBM and Advanced Roofing, LinkedIn and X (1:1, 4:5, 16:9, 9:16): all 12 videos PASSED, contrast included; climber clear. Advanced Roofing's long card 2 sub now ends over lighter tiles: still readable and passes contrast. Tests: 1 new (build 10), build 9 test removed; full suite 457 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

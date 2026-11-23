@@ -105,8 +105,6 @@ body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiase
 .label{position:absolute;font-family:'Archivo Black';font-size:${px(3 * u)};padding:${px(0.8 * u)} ${px(1.6 * u)};border-radius:${px(0.6 * u)};letter-spacing:.04em;box-shadow:0 6px 24px rgba(0,0,0,.35);white-space:nowrap;z-index:3}
 .txt{position:absolute;left:${px(L.left)};right:${px(L.right)};bottom:${px(L.bottom)};z-index:3}
 .wide .txt{right:auto;width:${px(wideWidth)}}
-.wide.right .shade{left:auto;right:0;background:linear-gradient(to left,rgba(${P},.95) 0%,rgba(${P},.88) 55%,rgba(${P},0) 100%)}
-.wide.right .txt{left:auto;right:${px(L.right)}}
 .step{display:inline-flex;align-items:center;gap:${px(1.2 * u)};font-weight:800;letter-spacing:.12em;font-size:${px(1.9 * u)};color:${C.soft};margin-bottom:${px(1.4 * u)}}
 .step b{display:inline-flex;align-items:center;justify-content:center;width:${px(5.2 * u)};height:${px(5.2 * u)};border-radius:50%;background:${C.accent};color:${C.accentText};font-family:'Archivo Black';font-weight:400;font-size:${px(2.8 * u)};letter-spacing:0}
 .kick{display:inline-block;background:${C.accent};color:${C.accentText};font-weight:800;letter-spacing:.12em;font-size:${px(1.9 * u)};padding:${px(0.8 * u)} ${px(1.5 * u)};border-radius:${px(0.6 * u)};margin-bottom:${px(1.4 * u)}}
@@ -159,9 +157,7 @@ export function frameHtml({item, brand, f, images = {}, id = '', hideTag = false
   const left = item.badge ? `<div class="badge a" data-k="badge">${check(C.accentText)}${esc(item.badge)}</div>` : item.swipe ? `<div class="swipe" data-k="swipe">${esc(item.swipe)}</div>` : '';
   body += `<div class="row">${left}${hideBrand ? `<div class="brand" style="visibility:hidden">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div>` : brandHtml(brand)}</div>`;
   parts.push(`<div class="txt">${body}</div>`);
-  // Build 9: on wide frames side "right" puts the words, the fade and the business name on the right (subject on the left).
-  const right = shape === 'wide' && item.side === 'right' ? ' right' : '';
-  return `<div class="f ${shape}${right}${stacked(f) ? ' stack' : ''}"${id ? ` id="${id}"` : ''}>${parts.join('')}</div>`;
+  return `<div class="f ${shape}${stacked(f) ? ' stack' : ''}"${id ? ` id="${id}"` : ''}>${parts.join('')}</div>`;
 }
 
 export function stillPage({item, brand, f, images}) {
@@ -199,7 +195,7 @@ function measure(frame,extra){const S=PK.S,problems=[],texts=[],keys=[];
   if(r.x0<S.left-0.5||r.x1>PK.W-S.right+0.5||r.y0<S.top-0.5||r.y1>PK.H-S.bottom+0.5)problems.push({kind:'outside',text:t,where:k});
   for(const b of S.blocks||[])if(r.x0<b[0]+b[2]&&r.x1>b[0]&&r.y0<b[1]+b[3]&&r.y1>b[1])problems.push({kind:'block',text:t,where:k});
   if(el.scrollWidth>el.clientWidth+1)problems.push({kind:'cut',text:t,where:k});
-  if(k==='brand'&&Math.abs(r.x0-PK.left)>2*PK.u&&Math.abs(r.x1-PK.right)>2*PK.u&&!(frame.querySelector('.txt')&&Math.abs(r.x0-box(frame.querySelector('.txt')).x0)<=2*PK.u))problems.push({kind:'floating',text:t,where:k});
+  if(k==='brand'&&Math.abs(r.x0-PK.left)>2*PK.u&&Math.abs(r.x1-PK.right)>2*PK.u)problems.push({kind:'floating',text:t,where:k});
   const cs=getComputedStyle(el),own=cs.backgroundColor!=='rgba(0, 0, 0, 0)'?cs.backgroundColor:null;
   texts.push({text:t,box:[r.x0,r.y0,r.x1,r.y1],color:cs.color,size:parseFloat(cs.fontSize),own});}
  const txt=frame.querySelector('.txt');if(txt){const T=box(txt);for(const o of keys.filter(x=>['tag','label','count'].includes(x.k)))if(o.r.x0<T.x1&&o.r.x1>T.x0&&o.r.y0<T.y1&&o.r.y1>T.y0)problems.push({kind:'overlap',text:o.t,where:o.k});
@@ -230,11 +226,8 @@ export function videoPage({cards, brand, f, images, transition, seconds}) {
   // never sits over a photo of other work. The business name always stays fixed.
   const sameTag = new Set(cards.map(c => c.tag || '')).size <= 1;
   const tag = sameTag ? (cards.find(c => c.tag)?.tag || '') : '';
-  // Build 9: on wide frames the business name stays fixed only when every card puts its words on the same side;
-  // otherwise each card carries its own name under its words.
-  const sameSide = shapeOf(f) !== 'wide' || new Set(cards.map(c => c.side === 'right' ? 'right' : 'left')).size <= 1;
-  const frames = cards.map((c, i) => frameHtml({item: c, brand, f, images, id: 'c' + i, hideTag: sameTag, hideBrand: sameSide})).join('');
-  const fixed = `<div id="fixed" class="${shapeOf(f)}${stacked(f) ? ' stack' : ''}" style="position:absolute;inset:0;z-index:9;pointer-events:none">${tag ? `<div class="tag" data-k="tag">${esc(tag)}</div>` : ''}${sameSide ? `<div class="brand" data-k="brand" style="position:absolute">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div>` : ''}</div>`;
+  const frames = cards.map((c, i) => frameHtml({item: c, brand, f, images, id: 'c' + i, hideTag: sameTag, hideBrand: true})).join('');
+  const fixed = `<div id="fixed" class="${shapeOf(f)}${stacked(f) ? ' stack' : ''}" style="position:absolute;inset:0;z-index:9;pointer-events:none">${tag ? `<div class="tag" data-k="tag">${esc(tag)}</div>` : ''}<div class="brand" data-k="brand" style="position:absolute">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div></div>`;
   const timeline = String.raw`
 var T={W:${f.width},starts:${JSON.stringify(starts)},durs:${JSON.stringify(durs)},SW:${CHANGE_SECONDS},DIS:${dissolve},N:${n}};
 var ease=x=>1-Math.pow(1-Math.min(Math.max(x,0),1),3),io=x=>{x=Math.min(Math.max(x,0),1);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
@@ -247,7 +240,7 @@ function setTime(t){for(let i=0;i<T.N;i++){const el=document.getElementById('c'+
   else{const p=ease((local-base-(IN[k]??0.3))/ANIM);a.style.opacity=p;a.style.transform='translateY('+((1-p)*40)+'px)';}});}}
 function holdTime(i){return T.starts[i]+Math.min(T.durs[i]-T.SW-0.05,IN.badge+0.55);}
 window.prepare=async()=>{await window.packReady;const shrunk=[];for(let i=0;i<T.N;i++){const s=fit(document.getElementById('c'+i));if(s)shrunk.push(s);}
- const fb=document.querySelector('#fixed .brand');if(fb){const ref=document.querySelector('#c0 .brand').getBoundingClientRect();fb.style.left=ref.left+'px';fb.style.top=ref.top+'px';fb.style.width=ref.width+'px';}
+ const ref=document.querySelector('#c0 .brand').getBoundingClientRect(),fb=document.querySelector('#fixed .brand');fb.style.left=ref.left+'px';fb.style.top=ref.top+'px';fb.style.width=ref.width+'px';
  const problems=[],texts=[];const fixedEls=[...document.querySelectorAll('#fixed [data-k]')];
  for(let i=0;i<T.N;i++){setTime(holdTime(i));const m=measure(document.getElementById('c'+i),i===0?fixedEls:[]);problems.push(...m.problems.map(p=>({...p,card:i+1})));texts.push(m.texts);}
  setTime(0);return {problems,shrunk,frames:Math.round(${total}*${FPS})};};`;

@@ -196,16 +196,11 @@ test('build 8: a lone last word counts by width, not letters, and the counter ha
   assert.match(css, /\.count\{[^}]*background:rgba\(4,32,84,\.92\)/, 'counter pill in the panel colour');
 });
 
-test('build 9: side "right" moves the words to the right on wide shapes only', () => {
+test('build 10: the 16:9 fade sits only behind the words (bottom left), with no side option', () => {
   const brand = {primary: '#0256C6', accent: '#007018', panel: '#042054', name: 'JJBM', place: 'ANSONIA'};
   const wide = P.packFormats(P.parseSpec(sheet('linkedin'), 'linkedin'), 'carouselVideo').find(f => P.shapeOf(f) === 'wide');
-  const square = P.packFormats(P.parseSpec(sheet('linkedin'), 'linkedin'), 'carouselVideo').find(f => P.shapeOf(f) === 'square');
-  assert.match(P.frameHtml({item: {headline: 'A', side: 'right'}, brand, f: wide}), /class="f wide right stack"/);
-  assert.match(P.frameHtml({item: {headline: 'A', side: 'right'}, brand, f: square}), /class="f square"/);
-  assert.match(P.packCss(wide, brand), /\.wide\.right \.txt\{left:auto;right:/);
-  const fixedPart = html => html.slice(html.indexOf('<div id="fixed"'), html.indexOf('<script>'));
-  const mixed = P.videoPage({cards: [{headline: 'One', side: 'right'}, {headline: 'Two'}], brand, f: wide, images: {}});
-  assert.ok(!fixedPart(mixed).includes('class="brand"'), 'mixed sides: the name moves with each card');
-  const same = P.videoPage({cards: [{headline: 'One'}, {headline: 'Two'}], brand, f: wide, images: {}});
-  assert.ok(fixedPart(same).includes('class="brand"'), 'same side: the name stays fixed');
+  const css = P.packCss(wide, brand);
+  assert.match(css, /\.wide \.shade\{top:0;right:0;width:auto;background:radial-gradient\(ellipse [^)]* at 0% 100%/, 'fade from the bottom-left corner');
+  assert.ok(!/\.wide\.right/.test(css), 'no right-side layout');
+  assert.match(P.frameHtml({item: {headline: 'A', side: 'right'}, brand, f: wide}), /class="f wide stack"/, 'side is ignored');
 });
