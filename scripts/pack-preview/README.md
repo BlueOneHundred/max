@@ -7,3 +7,5 @@ They expect this repo cloned at /home/claude/max, `npm ci --ignore-scripts` and 
 - `tooltest.mjs <team root>`: runs the real make_pack_ad / make_pack_carousel / make_pack_video handlers with Chrome stand-ins for renderPage and renderFrames.
 - `sheet.py <out.jpg> <images...>`: a contact sheet for looking at many files at once.
 - `ar.json`: Advanced Roofing's pack data (session 1 to 3). `jjbm-ads-test1.json`: JJBM's ads.json as first prepared for test run 1 (before Rule Checker's fixes).
+- `pagetest.mjs <team root> [business]` (build 12): runs the real make_pack_page with a Chrome stand-in for renderPage and prints its result.
+- `clicktest.mjs <index.html>` (build 12): opens a made page on desktop and phone, clicks every platform tab and shape, plays every video, steps through every carousel card and reports anything that did not show, play or fit.

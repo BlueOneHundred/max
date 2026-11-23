@@ -221,11 +221,43 @@ test('build 11: make_pack_page reads page.md, lists files per platform and block
   assert.deepEqual(main.lines, ['Line one.', 'Line two.']);
   const html = G.pageHtml({page, business: 'test-co', brand: {primary: '#0256C6', accent: '#007018'}, zips: [{platform: 'facebook', file: 'test-co-facebook-images.zip', count: 2}]});
   assert.match(html, /noindex, nofollow/);
-  assert.match(html, /<video src="files\/tiktok\/A-roof-infeed-9x16.mp4"/);
-  assert.match(html, />US\$25</);
+  assert.ok(!/<video /.test(html), 'build 12: no video loads until clicked');
+  assert.match(html, /data-pay="\$25">\$25</);
   assert.ok(!/https?:\/\//.test(html.replace(/<script>[\s\S]*<\/script>/, '')), 'no network links');
   for (const bad of ['## For Max\nnothing', 'Rule Checker said so', 'T1 passed', 'source [S1]', 'Hopkins', '7am–8pm', 'Get more leads today']) assert.ok(G.pageWordProblems(md + '\n' + bad).length, bad);
   assert.deepEqual(G.requiredSections(G.parsePageMd('## Intro\nhi')).length, 3);
   const zip = G.zipStore([{name: 'a.txt', data: Buffer.from('hello')}]);
   assert.equal(zip.readUInt32LE(0), 0x04034b50); assert.equal(G.crc32(Buffer.from('hello')), 0x3610a686);
+});
+
+test('build 12: the new page design (tabs, posters, working carousel, Tavin\'s thanks words, in-page check)', async () => {
+  const G = await import('../src/pack-page.mjs');
+  const md = ['# Your new ads, Test Co Roofing', '', 'Made for Test Co Roofing · Perth, Australia', '', '## Intro', '', 'Hello.', '', '## How we make ads', '', 'One idea.', '',
+    '## Ad A: Roofs', '', 'On the image: "Roofs done right."', '', 'Why:', '- The principle: be specific.', '', 'Headline: Roof repairs in Perth', '', 'Main text:', 'Line one.', 'Line two.', '',
+    'Files:', '- Facebook: A-roof-feed-4x5.jpg (4:5 feed), A-roof-feed-1x1.jpg (1:1 feed)', '- TikTok: A-roof-infeed-9x16.mp4 (9:16 video)', '',
+    '## Carousel F', '', 'On the first card: "One crew."', '', 'Headlines (one per card):', '1. One crew.', '2. Roofs.', '', 'Main text:', 'All of it.', '',
+    'Files (2 square cards, in order):', '- Facebook: F-carousel-1of2-carousel-1x1.jpg, F-carousel-2of2-carousel-1x1.jpg (1:1 carousel cards)', '- TikTok: no still carousel; on TikTok the carousel runs as the video below', '',
+    '## Lead form', '', 'Form headline: Free quote', '', 'Question to ask: "What do you need?" (Roof / Gutter)', '', 'Form image: own-01.jpg (your crew)', '',
+    '## How to test them', '', '1. Run them.', '', '## If you found these useful', '', 'Buttons: $25 / $50 / $100 / $250 (links added by Tavin)'].join('\n');
+  const page = G.parsePageMd(md), posters = new Set(['posters/tiktok/A-roof-infeed-9x16.jpg']);
+  const d = G.pageData({page, business: 'test-co', zips: [{platform: 'facebook', file: 'test-co-facebook-images.zip', count: 4}], posters});
+  assert.equal(d.biz, 'Test Co Roofing'); assert.equal(d.initials, 'TCR');
+  assert.equal(d.ads[0].onimage, 'Roofs done right.', 'quotes taken off');
+  assert.deepEqual(Object.keys(d.ads[0].files), ['Facebook', 'TikTok']);
+  assert.equal(d.ads[0].files.TikTok.items[0].poster, 'posters/tiktok/A-roof-infeed-9x16.jpg');
+  assert.equal(d.ads[0].files.Facebook.items[0].shape, '4:5');
+  assert.deepEqual(d.car.heads, ['One crew.', 'Roofs.']); assert.equal(d.car.files.Facebook.items.length, 2); assert.equal(d.car.files.TikTok.items.length, 0);
+  assert.deepEqual(d.pay, ['$25', '$50', '$100', '$250']); assert.equal(d.lead.img, 'files/form/own-01.jpg');
+  assert.equal(G.posterPath('tiktok', 'A-x-9x16.mp4'), 'posters/tiktok/A-x-9x16.jpg');
+  const html = G.pageHtml({page, business: 'test-co', brand: {primary: '#0256C6', accent: '#007018'}, zips: [], posters});
+  assert.match(html, /If you found these useful\.\.\./);
+  assert.ok(html.includes(G.thanksText('Test Co Roofing').replace(/'/g, '&#39;')), 'Tavin\'s words with the name filled in');
+  assert.match(G.thanksText('X'), /^If you find what we have created for you to be useful to X, you're more than welcome to say thanks if you wish\. This is a completely optional gesture; everything we've created for you on this page is yours to download for free and use however you like\.$/);
+  assert.match(html, /Prices in US dollars, paid securely through Whop\./); assert.ok(!/refund/i.test(html), 'no refund line');
+  assert.ok(!/[\u2013\u2014]/.test(html), 'no dashes'); assert.match(html, /noindex, nofollow/);
+  assert.ok(!/https?:\/\//.test(html), 'no network links');
+  assert.ok(!/<\/script/i.test(html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'))), 'the data cannot close the script');
+  assert.match(G.PAGE_CHECK_SCRIPT, /badVideos/); assert.doesNotThrow(() => new Function('return ' + G.PAGE_CHECK_SCRIPT));
+  const script = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
+  assert.doesNotThrow(() => new Function('window', 'document', script), 'the page script parses');
 });
