@@ -122,7 +122,7 @@ export function pageData({page, business, zips = [], posters = new Set()}) {
     else if (low === 'if you found these useful') d.pay = (kvText(kv(s, /^buttons$/i)).match(/\$\d+/g) || []);
     else d.other.push({id: anchor(t), title: t, blocks: s.blocks.filter(b => ['p', 'ul', 'ol'].includes(b.type))});
   }
-  for (const x of [...d.ads, d.vid].filter(Boolean)) for (const it of x.files.TikTok?.items || []) if (it.video) d.videos.push(it);
+  for (const x of [...d.ads, d.vid].filter(Boolean)) for (const it of x.files.TikTok?.items || []) if (it.video) d.videos.push({...it, label: x.letter ? `Ad ${x.letter}: ${x.name}` : 'The carousel as a video'});
   return d;
 }
 
@@ -212,7 +212,7 @@ function clientMain(D) {
   const dl = $('downloads');
   dl.innerHTML = '<h2>Download everything</h2><p class="lead">Each zip holds all the images for that platform. Videos download one by one.</p><div class="dlgrid">'
     + D.zips.map(z => `<div class="dlcard"><b>${z.plat} images</b><span>Zip, ${z.count} images${z.mb ? ', ' + z.mb + ' MB' : ''}</span><a class="dl" href="${z.file}" download>Download zip</a></div>`).join('')
-    + (D.videos.length ? `<div class="dlcard"><b>TikTok videos</b><span>${D.videos.length} videos, 9:16</span><ul>${D.videos.map(t => `<li><a href="${t.path}" download>${esc(t.name)}</a></li>`).join('')}</ul></div>` : '') + '</div>';
+    + '</div>' + (D.videos.length ? `<h3 class="dlhead">TikTok videos</h3><div class="vidgrid">${D.videos.map(t => `<div class="dlcard vcard">${t.poster ? `<img src="${t.poster}" alt="">` : ''}<b>${esc(t.label)}</b><span>${esc(t.desc || '9:16 video')}</span><a class="dl" href="${t.path}" download>Download video</a></div>`).join('')}</div>` : '');
 }
 
 function otherHtml(s) {
@@ -311,7 +311,10 @@ button{font:inherit;cursor:pointer}
 .dlgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
 .dlcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
 .dlcard b{display:block;font-size:19px}.dlcard span{display:block;color:var(--muted);font-size:15px;margin-bottom:10px}
-.dlcard ul{list-style:none}.dlcard li{margin:6px 0}.dlcard li a{color:var(--blue);font-weight:700;font-size:16px;font-feature-settings:'calt' 0;word-break:break-all}
+.dlhead{font-size:24px;margin:30px 0 14px}
+.vidgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.vcard{display:flex;flex-direction:column}.vcard img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:10px;margin-bottom:12px;background:#1b2436}
+.vcard b{font-size:17px;line-height:1.3}.vcard span{flex:1}.vcard .dl{align-self:flex-start}
 .thanks{text-align:center;max-width:860px;margin:28px auto 0}
 .thanks h2{font-size:40px}
 .thanks p{font-size:21px}
@@ -319,7 +322,8 @@ button{font:inherit;cursor:pointer}
 .paybtns a{background:var(--green);color:#fff;text-decoration:none;font-weight:800;font-size:22px;border-radius:12px;padding:14px 30px;min-width:120px}
 .paybtns a:hover{filter:brightness(1.15)}
 footer{color:var(--muted);font-size:15px;padding:40px 0 60px;border-top:1px solid var(--line);margin-top:56px}
-@media (max-width:980px){.adgrid{grid-template-columns:minmax(0,1fr);gap:28px}.wrap{padding:0 18px}.card{padding:22px}body{font-size:18px}h2{font-size:28px}.stage{height:min(72vh,560px);padding:10px}
+@media (max-width:1100px){.vidgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:980px){.vidgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.adgrid{grid-template-columns:minmax(0,1fr);gap:28px}.wrap{padding:0 18px}.card{padding:22px}body{font-size:18px}h2{font-size:28px}.stage{height:min(72vh,560px);padding:10px}
 nav.jump .wrap{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}nav.jump a{font-size:15px;padding:6px 10px;white-space:nowrap}nav.jump a.go{margin-left:0}header{padding:36px 0 28px}header p{font-size:18px}.post .ptxt{font-size:15px}.thanks h2{font-size:30px}.thanks p{font-size:19px}}
 </style>
 </head>
