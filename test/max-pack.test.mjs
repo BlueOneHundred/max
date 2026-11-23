@@ -204,3 +204,28 @@ test('build 10: the 16:9 fade sits only behind the words (bottom left), with no 
   assert.ok(!/\.wide\.right/.test(css), 'no right-side layout');
   assert.match(P.frameHtml({item: {headline: 'A', side: 'right'}, brand, f: wide}), /class="f wide stack"/, 'side is ignored');
 });
+
+test('build 11: make_pack_page reads page.md, lists files per platform and blocks notes and rule names', async () => {
+  const G = await import('../src/pack-page.mjs');
+  const md = ['# Your new ads, Test Co', '', 'Made for Test Co · Perth, Australia', '', '## Intro', '', 'Two of your ads have run since 2024.', '',
+    '## Ad A: Roofs', '', 'On the image: "Roofs done right."', '', 'Why:', '- The principle: be specific. Your own number.', '', 'Headline: Roof repairs in Perth', '', 'Main text:', 'Line one.', 'Line two.', '',
+    'Files:', '- Facebook: A-roof-feed-4x5.jpg (4:5 feed), A-roof-feed-1x1.jpg (1:1 feed)', '- TikTok: A-roof-infeed-9x16.mp4 (9:16 video)', '',
+    '## Lead form', '', 'Form image: own-01.jpg (your crew)', '', '## How to test them', '', '1. Run them.', '2. Compare cost per lead.', '', '## If you found these useful', '', "Yours to keep. Pay what you think it's worth (optional).", '', 'Buttons: $25 / $50 / $100 / $250 (links added by Tavin)'].join('\n');
+  const page = G.parsePageMd(md);
+  assert.equal(page.title, 'Your new ads, Test Co');
+  assert.deepEqual(G.requiredSections(page), []);
+  assert.deepEqual(G.pageWordProblems(md), []);
+  const files = G.pageFiles(page, 'test-co');
+  assert.deepEqual(files.map(f => f.from), ['clients/test-co/free-pack/facebook/A-roof-feed-4x5.jpg', 'clients/test-co/free-pack/facebook/A-roof-feed-1x1.jpg', 'clients/test-co/free-pack/tiktok/A-roof-infeed-9x16.mp4', 'clients/test-co/photos/own-01.jpg']);
+  const main = page.sections[1].blocks.find(b => b.key === 'Main text');
+  assert.deepEqual(main.lines, ['Line one.', 'Line two.']);
+  const html = G.pageHtml({page, business: 'test-co', brand: {primary: '#0256C6', accent: '#007018'}, zips: [{platform: 'facebook', file: 'test-co-facebook-images.zip', count: 2}]});
+  assert.match(html, /noindex, nofollow/);
+  assert.match(html, /<video src="files\/tiktok\/A-roof-infeed-9x16.mp4"/);
+  assert.match(html, />US\$25</);
+  assert.ok(!/https?:\/\//.test(html.replace(/<script>[\s\S]*<\/script>/, '')), 'no network links');
+  for (const bad of ['## For Max\nnothing', 'Rule Checker said so', 'T1 passed', 'source [S1]', 'Hopkins', '7am–8pm', 'Get more leads today']) assert.ok(G.pageWordProblems(md + '\n' + bad).length, bad);
+  assert.deepEqual(G.requiredSections(G.parsePageMd('## Intro\nhi')).length, 3);
+  const zip = G.zipStore([{name: 'a.txt', data: Buffer.from('hello')}]);
+  assert.equal(zip.readUInt32LE(0), 0x04034b50); assert.equal(G.crc32(Buffer.from('hello')), 0x3610a686);
+});

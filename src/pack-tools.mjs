@@ -8,6 +8,7 @@ import {ffmpeg} from './media.mjs';
 import {imageDataUrl} from './book-builder.mjs';
 import {imageSize} from './book-pictures.mjs';
 import {contrastProblems} from './carousel-builder.mjs';
+import {parsePageMd, pageHtml, pageWordProblems, requiredSections, pageFiles, zipStore, pageCheckNote, PAGE_PLATFORMS} from './pack-page.mjs';
 import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
 
 // Max build 7 (22 Nov 2026): JJBM's busy photos (branches, leaves, gravel) made a 15 s 1440 px video over 20 MB and the save failed.
@@ -129,6 +130,42 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
         results.push(await drawStill({html: stillPage({item, brand, f, images}), f, rel: `${folder}/${platform}/${name}-${i + 1}of${n}-${f.id}.jpg`, scratch}));
       }
       return finish({tool: 'make_pack_carousel', platform, folder, name, spec, results, notes, missing});
+    });
+
+
+  // Build 11: the private page. Page Builder writes pages/<business>/page.md; this makes the page from it.
+  register('make_pack_page', 'Make a pack\'s private page from pages/<business>/page.md (written by Page Builder from words the checkers passed). Writes pages/<business>/index.html with the pack\'s own files beside it (files/<platform>/...: every still and video page.md names, from clients/<business>/free-pack/<platform>/, and the form image from clients/<business>/photos/), one zip of images per platform, page-preview.jpg (desktop) and page-preview-phone.jpg (phone) to look at, and page-check.md. It checks that every named file exists, that page.md has the title, Intro, How to test them and If you found these useful sections, and that no customer word breaks the house rules (no notes, rule names, source marks, bot names, Hopkins, dashes or promises). Colours come from free-pack/ads.json. It never publishes anything. Costs nothing.',
+    {business: z.string().regex(/^[a-z0-9][a-z0-9-]{0,40}$/).describe('The business folder name, e.g. "jjbm" (clients/jjbm, pages/jjbm)')},
+    async ({business}) => {
+      const dir = `pages/${business}`; let md;
+      try { md = (await readFile(await teamFolder.target(null, `${dir}/page.md`))).toString('utf8'); }
+      catch (error) { if (error.code === 'ENOENT') return text({passed: false, toFix: [`${dir}/page.md is missing: Page Builder writes it first.`]}); throw error; }
+      let brand = {};
+      try { brand = JSON.parse((await readFile(await teamFolder.target(null, `clients/${business}/free-pack/ads.json`))).toString('utf8')).brand || {}; } catch {}
+      const page = parsePageMd(md), files = pageFiles(page, business), toFix = [...requiredSections(page).map(m => `page.md is missing ${m}.`), ...pageWordProblems(md)], notes = [];
+      if (!files.length) toFix.push('page.md names no files: each ad needs a "Files:" list with one line per platform.');
+      for (const old of ['files', ...PAGE_PLATFORMS.map(p => `${business}-${p}-images.zip`)]) await rm(await teamFolder.target(null, `${dir}/${old}`, true), {recursive: true, force: true}).catch(() => {});
+      const zipParts = {}; let bytes = 0;
+      for (const f of files) {
+        let data;
+        try { data = await readFile(await teamFolder.target(null, f.from)); } catch (error) { if (error.code === 'ENOENT') { toFix.push(`page.md names ${f.name} for ${f.platform}, but ${f.from} does not exist.`); continue; } throw error; }
+        await teamFolder.writeBytes(null, `${dir}/${f.to}`, data, {maxFileBytes: VIDEO_MAX_FILE_BYTES}); bytes += data.length;
+        if (f.platform !== 'form' && /\.(jpe?g|png)$/i.test(f.name)) (zipParts[f.platform] ||= []).push({name: `${business}-${f.platform}/${f.name}`, data});
+      }
+      const zips = [];
+      for (const p of PAGE_PLATFORMS) if (zipParts[p]?.length) { const file = `${business}-${p}-images.zip`, zip = zipStore(zipParts[p]); await teamFolder.writeBytes(null, `${dir}/${file}`, zip, {maxFileBytes: VIDEO_MAX_FILE_BYTES}); bytes += zip.length; zips.push({platform: p, file, count: zipParts[p].length}); }
+      const html = pageHtml({page, business, brand, zips});
+      await teamFolder.writeBytes(null, `${dir}/index.html`, Buffer.from(html));
+      if (!/\$\d/.test(md) || /links added by Tavin/i.test(md)) notes.push('The payment buttons have no links yet: Tavin adds the Whop links before the page goes live.');
+      notes.push('Nothing was published. The page folder is ready for Tavin to look at and publish.');
+      const previews = [];
+      for (const [name, width, height] of [['page-preview.jpg', 1280, 2600], ['page-preview-phone.jpg', 390, 2400]]) {
+        try { const shot = await renderPage({file: await teamFolder.target(null, `${dir}/index.html`), width, height, root: teamFolder.root(), signal, quality: 82}); await teamFolder.writeBytes(null, `${dir}/${name}`, shot.jpeg); previews.push(`${dir}/${name}`); }
+        catch (error) { notes.push(`The ${name} preview could not be made (${String(error.message || error).slice(0, 120)}).`); }
+      }
+      const result = toFix.length ? `FAILED (${toFix.length} to fix)` : 'PASSED', check = `${dir}/page-check.md`;
+      await teamFolder.writeBytes(null, check, Buffer.from(pageCheckNote({business, result, files, zips, toFix, notes, bytes})));
+      return text({passed: !toFix.length, page: `${dir}/index.html`, previews, zips: zips.map(z => `${dir}/${z.file}`), files: files.length, toFix, notes, check, note: toFix.length ? 'Not passed. Fix page.md (or ask the bot that owns a missing file) and run make_pack_page again.' : 'Passed. Look at the previews with zoom_team_image before you finish.'});
     });
 
   if (renderFrames) register('make_pack_video', 'Make the carousel as a 15-second video for your platform, in the shapes its spec sheet\'s pack line lists ("carouselVideo"). Give the same cards as make_pack_carousel. House rules built in (Tavin, 21 Nov 2026): a "title" card is left out (the video opens on step 1) unless keepTitleCard is true; card 1\'s words are on screen from the first frame; the top label and business name stay fixed; cards swipe on feed shapes and dissolve on 9:16; no sound. Every card is measured at its fullest moment against the safe zone. Writes <folder>/<platform>/<name>-video-check.md.',

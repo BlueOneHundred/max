@@ -17,6 +17,13 @@ TEAM = [
     {'name': 'X Bot', 'file': 'x-bot.txt', 'shape': 'star6', 'color': 'yellow', 'hex': '#4A4A4A', 'caps': WEB},
     {'name': 'Rule Checker', 'file': 'rule-checker.txt', 'shape': 'heartChubby', 'color': 'green', 'hex': '#3E6E4F', 'caps': NO_WEB},
     {'name': 'Visual Check', 'file': 'visual-check.txt', 'shape': 'hex', 'color': 'orange', 'hex': '#35444F', 'caps': NO_WEB},
+    # Session 5 (23 Nov 2026): the other 6. Max already exists in the app (its starting bot): only its instructions, capabilities and model change.
+    {'name': 'Max', 'file': 'max.txt', 'shape': 'star6', 'color': 'green', 'hex': '#1F6B3A', 'caps': NO_WEB},
+    {'name': 'Lead Finder', 'file': 'lead-finder.txt', 'shape': 'sparkle', 'color': 'yellow', 'hex': '#7A6A2A', 'caps': WEB},
+    {'name': 'Fact Finder', 'file': 'fact-finder.txt', 'shape': 'flower', 'color': 'green', 'hex': '#4A6B3E', 'caps': WEB},
+    {'name': 'Ad Writer', 'file': 'ad-writer.txt', 'shape': 'heartChubby', 'color': 'magenta', 'hex': '#7A3F5E', 'caps': NO_WEB},
+    {'name': 'Page Builder', 'file': 'page-builder.txt', 'shape': 'hex', 'color': 'cyan', 'hex': '#2F6E7A', 'caps': NO_WEB},
+    {'name': 'Outreach Writer', 'file': 'outreach-writer.txt', 'shape': 'star6', 'color': 'orange', 'hex': '#8A5A2E', 'caps': NO_WEB},
 ]
 MODEL = 'opus'  # careful checking and judging by eye: the strongest model, as Toby's writers use
 
@@ -33,7 +40,9 @@ def build(state):
         text = open(os.path.join(HERE, 'built', spec['file']), encoding='utf-8').read().strip()
         check(text, spec['name'])
         if spec['name'] in names:
-            b = names[spec['name']]; b['instructions'] = text; b['capabilities'] = spec['caps']; b['model'] = MODEL; updated.append(spec['name']); continue
+            b = names[spec['name']]; b['instructions'] = text; b['capabilities'] = spec['caps']; b['model'] = MODEL
+            # Session 5: the app's starter bot (Max) was on 'auto' and rewrote its own instructions from the first message. Ours are hand-written.
+            b['promptMode'] = 'manual'; b['promptGenerated'] = True; updated.append(spec['name']); continue
         bid, cid = str(uuid.uuid4()), str(uuid.uuid4())
         state['bots'].append({'id': bid, 'name': spec['name'], 'avatarSeed': spec['name'], 'avatarDefaultShape': spec['shape'], 'avatarDefaultColor': spec['color'],
             'userPromptTemplate': '{{message}}', 'promptMode': 'manual', 'promptGenerated': True, 'avatarShape': spec['shape'], 'avatarColor': spec['color'],
