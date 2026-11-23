@@ -17,7 +17,7 @@ for (const [label, vp] of [['desktop', {width: 1440, height: 900}], ['phone', {w
         const st = await p.evaluate(id => { const v = document.querySelector(`#${id} video`); return v ? {t: v.currentTime, w: v.videoWidth, err: v.error && v.error.code, src: v.getAttribute('src')} : null; }, id);
         if (!st || st.t < 0.5 || !st.w) problems.push(`${label} ${id} ${plat} video did not play ${JSON.stringify(st)}`); else played++;
       } else {
-        const ok = await p.evaluate(id => { const i = document.querySelector(`#${id} .stage img`); return i && i.complete && i.naturalWidth > 0; }, id);
+        const ok = await p.evaluate(async id => { const i = document.querySelector(`#${id} .stage img`); if (!i) return false; if (!i.complete) await new Promise(r => { i.onload = i.onerror = r; setTimeout(r, 5000); }); return i.naturalWidth > 0; }, id);
         if (!ok) problems.push(`${label} ${id} ${plat} shape ${j} image not shown`); else shown++;
       }
     }
