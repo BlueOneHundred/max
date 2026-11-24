@@ -122,6 +122,7 @@ body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiase
 .stack .brand{margin-left:0;text-align:left}
 .swipe{font-weight:800;font-size:${px(2.1 * u)};color:${C.soft};white-space:nowrap}
 .brand{margin-left:auto;text-align:right;font-family:'Archivo Black';font-size:${px(1.9 * u)};line-height:1.05;letter-spacing:.02em;white-space:nowrap}
+/* build 13 panel */.f.gp .shade{display:none}.gpanel{position:absolute;background:rgba(${P},.9);border-radius:${px(2.4 * u)};box-shadow:0 ${px(u)} ${px(4 * u)} rgba(0,0,0,.28)}
 .brand small{display:block;font-family:'Inter';font-weight:700;font-size:${px(1.35 * u)};letter-spacing:.18em;color:${C.soft}}
 `;
 }
@@ -134,7 +135,10 @@ export const brandHtml = brand => `<div class="brand" data-k="brand">${lines(bra
 // step + stepLabel (a numbered step), or stepLabel alone (a word label in a pill, e.g. "TREE WORK"),
 // headline (+ headlineSize in hundredths of the short side), quote, who, sub, step + stepLabel, badge, swipe, count.
 // focus: "x% y%" for every shape, or {square, tall, story, wide}.
-export function frameHtml({item, brand, f, images = {}, id = '', hideTag = false, hideBrand = false}) {
+// Build 13 (Tavin, 24 Nov 2026): a tall (9:16) ad, still or video, has no full-width fade. Its words and the business name
+// sit on one rounded panel in the brand's panel colour, the name under the words, with the same margin on every side.
+export const panelShape = f => shapeOf(f) === 'story';
+export function frameHtml({item, brand, f, images = {}, id = '', hideTag = false, hideBrand = false, gp = false}) {
   const L = layoutBox(f), shape = shapeOf(f), u = L.u, C = colours(brand);
   const focus = typeof item.focus === 'object' && item.focus ? (item.focus[shape] || item.focus.tall || item.focus.square) : item.focus;
   const photo = item.photo && images[item.photo] ? `<div class="photo" style="background-image:url('${images[item.photo]}');background-position:${focusCss(focus)}"></div>` : '';
@@ -157,11 +161,11 @@ export function frameHtml({item, brand, f, images = {}, id = '', hideTag = false
   const left = item.badge ? `<div class="badge a" data-k="badge">${check(C.accentText)}${esc(item.badge)}</div>` : item.swipe ? `<div class="swipe" data-k="swipe">${esc(item.swipe)}</div>` : '';
   body += `<div class="row">${left}${hideBrand ? `<div class="brand" style="visibility:hidden">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div>` : brandHtml(brand)}</div>`;
   parts.push(`<div class="txt">${body}</div>`);
-  return `<div class="f ${shape}${stacked(f) ? ' stack' : ''}"${id ? ` id="${id}"` : ''}>${parts.join('')}</div>`;
+  return `<div class="f ${shape}${stacked(f) || gp ? ' stack' : ''}${gp ? ' gp' : ''}"${id ? ` id="${id}"` : ''}>${parts.join('')}</div>`;
 }
 
-export function stillPage({item, brand, f, images}) {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${packCss(f, brand)}</style></head><body>${frameHtml({item, brand, f, images})}<script>${PACK_JS(f)}</script></body></html>`;
+export function stillPage({item, brand, f, images, gp = false}) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${packCss(f, brand)}</style></head><body>${frameHtml({item, brand, f, images, gp})}<script>${PACK_JS(f)}</script></body></html>`;
 }
 
 // ---------- measuring (runs inside the page) ----------
@@ -173,6 +177,13 @@ export function PACK_JS(f) {
   const L = layoutBox(f);
   return String.raw`
 var PK={W:${f.width},H:${f.height},S:${JSON.stringify(f.safe)},u:${L.u},wide:${shapeOf(f) === 'wide'},left:${L.left},right:${f.width - L.right}};
+// Build 13: the panel hugs the words' own lines (not the whole word column), the badge and the business name, with 4u on every side.
+function panel(fr,brandEl){const PAD=4*PK.u,rs=[];const lineRects=el=>{const g=document.createRange();g.selectNodeContents(el);for(const r of g.getClientRects())if(r.width&&r.height)rs.push(r);};
+ fr.querySelectorAll('.txt .a:not(.badge),.txt [data-k]:not(.badge):not(.brand)').forEach(el=>{if(!el.closest('.brand'))lineRects(el);});
+ fr.querySelectorAll('.txt .badge').forEach(el=>rs.push(el.getBoundingClientRect()));if(brandEl)rs.push(brandEl.getBoundingClientRect());
+ const x0=Math.min(...rs.map(r=>r.left)),y0=Math.min(...rs.map(r=>r.top)),x1=Math.max(...rs.map(r=>r.right)),y1=Math.max(...rs.map(r=>r.bottom));
+ const p=document.createElement('div');p.className='gpanel';p.style.cssText='left:'+(x0-PAD)+'px;top:'+(y0-PAD)+'px;width:'+(x1-x0+2*PAD)+'px;height:'+(y1-y0+2*PAD)+'px';
+ fr.querySelector('.shade').after(p);return p;}
 window.packReady=(async()=>{await document.fonts.ready;
  await Promise.all([...document.querySelectorAll('.photo')].map(el=>new Promise(r=>{const m=/url\(["']?(.*?)["']?\)$/.exec(el.style.backgroundImage);if(!m)return r();const i=new Image();i.onload=()=>{el.dataset.ok='1';r();};i.onerror=()=>r();i.src=m[1];})));
  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));})();
@@ -197,7 +208,9 @@ function measure(frame,extra){const S=PK.S,problems=[],texts=[],keys=[];
   if(el.scrollWidth>el.clientWidth+1)problems.push({kind:'cut',text:t,where:k});
   if(k==='brand'&&Math.abs(r.x0-PK.left)>2*PK.u&&Math.abs(r.x1-PK.right)>2*PK.u)problems.push({kind:'floating',text:t,where:k});
   const cs=getComputedStyle(el),own=cs.backgroundColor!=='rgba(0, 0, 0, 0)'?cs.backgroundColor:null;
-  texts.push({text:t,box:[r.x0,r.y0,r.x1,r.y1],color:cs.color,size:parseFloat(cs.fontSize),own});}
+  // Build 13: on a panel layout the words' column is wider than the panel, so contrast is measured behind the letters themselves.
+  let cb=[r.x0,r.y0,r.x1,r.y1];if(frame.classList.contains('gp')&&!own){const g=document.createRange();g.selectNodeContents(el);const lr=[...g.getClientRects()].filter(q=>q.width&&q.height);if(lr.length)cb=[Math.min(...lr.map(q=>q.left)),Math.min(...lr.map(q=>q.top)),Math.max(...lr.map(q=>q.right)),Math.max(...lr.map(q=>q.bottom))];}
+  texts.push({text:t,box:cb,color:cs.color,size:parseFloat(cs.fontSize),own});}
  const txt=frame.querySelector('.txt');if(txt){const T=box(txt);for(const o of keys.filter(x=>['tag','label','count'].includes(x.k)))if(o.r.x0<T.x1&&o.r.x1>T.x0&&o.r.y0<T.y1&&o.r.y1>T.y0)problems.push({kind:'overlap',text:o.t,where:o.k});
   const labs=keys.filter(x=>x.k==='label');for(let i=0;i<labs.length;i++)for(let j=i+1;j<labs.length;j++){const a=labs[i].r,b=labs[j].r;if(a.x0<b.x1&&a.x1>b.x0&&a.y0<b.y1&&a.y1>b.y0)problems.push({kind:'overlap',text:labs[i].t+' / '+labs[j].t,where:'label'});}}
  for(const el of frame.querySelectorAll('.h,.q,.sub')){const w=widow(el);if(w)problems.push({kind:'widow',text:el.textContent.trim().slice(0,60),word:w});}
@@ -206,7 +219,7 @@ function measure(frame,extra){const S=PK.S,problems=[],texts=[],keys=[];
  return {problems,texts};}
 `;
 }
-export const STILL_SCRIPT = `(async()=>{await window.packReady;const fr=document.querySelector('.f');const shrunk=fit(fr);const m=measure(fr,[]);return {...m,shrunk:shrunk?[shrunk]:[]};})()`;
+export const STILL_SCRIPT = `(async()=>{await window.packReady;const fr=document.querySelector('.f');const shrunk=fit(fr);if(fr.classList.contains('gp'))panel(fr,fr.querySelector('.txt .brand'));const m=measure(fr,[]);return {...m,shrunk:shrunk?[shrunk]:[]};})()`;
 export const HIDE_WORDS_CSS = '.f *{color:transparent!important;text-shadow:none!important}.f svg{visibility:hidden!important}';
 
 // ---------- video ----------
@@ -226,8 +239,9 @@ export function videoPage({cards, brand, f, images, transition, seconds}) {
   // never sits over a photo of other work. The business name always stays fixed.
   const sameTag = new Set(cards.map(c => c.tag || '')).size <= 1;
   const tag = sameTag ? (cards.find(c => c.tag)?.tag || '') : '';
-  const frames = cards.map((c, i) => frameHtml({item: c, brand, f, images, id: 'c' + i, hideTag: sameTag, hideBrand: true})).join('');
-  const fixed = `<div id="fixed" class="${shapeOf(f)}${stacked(f) ? ' stack' : ''}" style="position:absolute;inset:0;z-index:9;pointer-events:none">${tag ? `<div class="tag" data-k="tag">${esc(tag)}</div>` : ''}<div class="brand" data-k="brand" style="position:absolute">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div></div>`;
+  const gp = panelShape(f); // build 13: ad videos and carousel videos alike (Tavin, 24 Nov 2026)
+  const frames = cards.map((c, i) => frameHtml({item: c, brand, f, images, id: 'c' + i, hideTag: sameTag, hideBrand: true, gp})).join('');
+  const fixed = `<div id="fixed" class="${shapeOf(f)}${stacked(f) || gp ? ' stack' : ''}" style="position:absolute;inset:0;z-index:9;pointer-events:none">${tag ? `<div class="tag" data-k="tag">${esc(tag)}</div>` : ''}<div class="brand" data-k="brand" style="position:absolute">${lines(brand.name)}<small>${esc(brand.place || '')}</small></div></div>`;
   const timeline = String.raw`
 var T={W:${f.width},starts:${JSON.stringify(starts)},durs:${JSON.stringify(durs)},SW:${CHANGE_SECONDS},DIS:${dissolve},N:${n}};
 var ease=x=>1-Math.pow(1-Math.min(Math.max(x,0),1),3),io=x=>{x=Math.min(Math.max(x,0),1);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
@@ -235,12 +249,21 @@ var IN={step:0.1,h:0.25,big:0.25,q:0.25,big2:0.35,who:0.4,sub:0.45,badge:1.1},AN
 function setTime(t){for(let i=0;i<T.N;i++){const el=document.getElementById('c'+i),s=T.starts[i],local=t-s;let x=0;
  if(T.DIS){el.style.opacity=i>0?io((t-(s-T.SW))/T.SW):1;}else{if(i>0)x=(1-io((t-(s-T.SW))/T.SW))*T.W;if(i<T.N-1)x-=io((t-(T.starts[i+1]-T.SW))/T.SW)*T.W*0.35;}
  el.style.transform='translateX('+x+'px)';el.style.zIndex=i;el.style.visibility=(t<s-T.SW||(i<T.N-1&&t>T.starts[i+1]))?'hidden':'visible';
- const z=(t-(s-(i>0?T.SW:0)))/(T.durs[i]+T.SW),ph=el.querySelector('.photo');if(ph)ph.style.transform='scale('+(1+0.07*Math.min(Math.max(z,0),1))+')';
+ const z=(t-(s-(i>0?T.SW:0)))/(T.durs[i]+T.SW),ph=el.querySelector('.photo');if(ph){if(T.N===1&&ph.dataset.glide)glide(ph,t/T.durs[0]);else ph.style.transform='scale('+(1+0.07*Math.min(Math.max(z,0),1))+')';}
  const base=i>0?0:-99;el.querySelectorAll('.a').forEach(a=>{const k=a.dataset.k||a.dataset.a;if(k==='badge'){const q=ease((local-(i>0?IN.badge:-99))/0.5);a.style.opacity=q;a.style.transform='scale('+(0.6+0.4*q)+')';}
   else{const p=ease((local-base-(IN[k]??0.3))/ANIM);a.style.opacity=p;a.style.transform='translateY('+((1-p)*40)+'px)';}});}}
+// Build 13: a one-card ad video glides. The camera moves across the photo's hidden part toward the focus (the subject) and
+// pushes in a little, so the video visibly moves; the words stay on screen from frame 1 (decision 38).
+function glideSetup(ph){const img=new Image();return new Promise(r=>{img.onload=()=>{const cs=getComputedStyle(ph).backgroundPosition.split(' ').map(v=>parseFloat(v));
+ const fw=ph.clientWidth,fh=ph.clientHeight,k=Math.max(fw/img.naturalWidth,fh/img.naturalHeight),sw=img.naturalWidth*k-fw,sh=img.naturalHeight*k-fh;
+ const fx=isNaN(cs[0])?50:cs[0],fy=isNaN(cs[1])?50:cs[1],axis=sw>=sh?'x':'y',f=axis==='x'?fx:fy,slack=axis==='x'?sw:sh,dist=Math.min(GL.SPAN,slack>0?GL.PX/slack*100:0);
+ const from=Math.min(100,Math.max(0,f>=50?f-dist:f+dist));ph.dataset.glide=JSON.stringify({axis,from,to:f,fx,fy});r();};img.onerror=()=>r();img.src=getComputedStyle(ph).backgroundImage.slice(5,-2);});}
+function glide(ph,p){const g=JSON.parse(ph.dataset.glide),q=io(p),v=g.from+(g.to-g.from)*q;ph.style.backgroundPosition=g.axis==='x'?v+'% '+g.fy+'%':g.fx+'% '+v+'%';ph.style.transform='scale('+(1+GL.ZOOM*q)+')';}
+var GL={SPAN:40,PX:900,ZOOM:0.12};
 function holdTime(i){return T.starts[i]+Math.min(T.durs[i]-T.SW-0.05,IN.badge+0.55);}
-window.prepare=async()=>{await window.packReady;const shrunk=[];for(let i=0;i<T.N;i++){const s=fit(document.getElementById('c'+i));if(s)shrunk.push(s);}
- const ref=document.querySelector('#c0 .brand').getBoundingClientRect(),fb=document.querySelector('#fixed .brand');fb.style.left=ref.left+'px';fb.style.top=ref.top+'px';fb.style.width=ref.width+'px';
+window.prepare=async()=>{await window.packReady;if(T.N===1){const ph=document.querySelector('#c0 .photo');if(ph)await glideSetup(ph);}const shrunk=[];for(let i=0;i<T.N;i++){const s=fit(document.getElementById('c'+i));if(s)shrunk.push(s);}
+ const ref=document.querySelector('#c0 .brand').getBoundingClientRect(),fb=document.querySelector('#fixed .brand');fb.style.left=ref.left+'px';fb.style.top=ref.top+'px';fb.style.width=ref.width+'px';{const ps=[];for(let i=0;i<T.N;i++){const c=document.getElementById('c'+i);if(c.classList.contains('gp'))ps.push(panel(c,fb));}
+ if(ps.length>1){const w=Math.max(...ps.map(p=>parseFloat(p.style.width)));ps.forEach(p=>p.style.width=w+'px');}} // one sequence: every card's panel the same width
  const problems=[],texts=[];const fixedEls=[...document.querySelectorAll('#fixed [data-k]')];
  for(let i=0;i<T.N;i++){setTime(holdTime(i));const m=measure(document.getElementById('c'+i),i===0?fixedEls:[]);problems.push(...m.problems.map(p=>({...p,card:i+1})));texts.push(m.texts);}
  setTime(0);return {problems,shrunk,frames:Math.round(${total}*${FPS})};};`;

@@ -9,6 +9,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIMIT = 32000  # the app's limit for bot instructions (Toby build 31 onwards; Max is built on Toby build 45)
 NO_WEB = {'web': False, 'files': True, 'computer': False, 'connections': False}
 WEB = {'web': True, 'files': True, 'computer': False, 'connections': False}
+# Session 7 (24 Nov 2026, decision 63): treg (a custom connection in Max) for reviews and the Ad Library: Connected apps on for these two only.
+TREG = {'web': True, 'files': True, 'computer': False, 'connections': True}
 TEAM = [
     {'name': 'Facebook Bot', 'file': 'facebook-bot.txt', 'shape': 'hex', 'color': 'cyan', 'hex': '#2F5DA8', 'caps': WEB},
     {'name': 'Instagram Bot', 'file': 'instagram-bot.txt', 'shape': 'flower', 'color': 'magenta', 'hex': '#9A3F7A', 'caps': WEB},
@@ -19,8 +21,10 @@ TEAM = [
     {'name': 'Visual Check', 'file': 'visual-check.txt', 'shape': 'hex', 'color': 'orange', 'hex': '#35444F', 'caps': NO_WEB},
     # Session 5 (23 Nov 2026): the other 6. Max already exists in the app (its starting bot): only its instructions, capabilities and model change.
     {'name': 'Max', 'file': 'max.txt', 'shape': 'star6', 'color': 'green', 'hex': '#1F6B3A', 'caps': NO_WEB},
-    {'name': 'Lead Finder', 'file': 'lead-finder.txt', 'shape': 'sparkle', 'color': 'yellow', 'hex': '#7A6A2A', 'caps': WEB},
+    {'name': 'Lead Finder', 'file': 'lead-finder.txt', 'shape': 'sparkle', 'color': 'yellow', 'hex': '#7A6A2A', 'caps': TREG},
     {'name': 'Fact Finder', 'file': 'fact-finder.txt', 'shape': 'flower', 'color': 'green', 'hex': '#4A6B3E', 'caps': WEB},
+    # Session 7 (24 Nov 2026): Review Miner (decision 59), after Fact Finder.
+    {'name': 'Review Miner', 'file': 'review-miner.txt', 'shape': 'sparkle', 'color': 'magenta', 'hex': '#5A3F7A', 'caps': TREG},
     {'name': 'Ad Writer', 'file': 'ad-writer.txt', 'shape': 'heartChubby', 'color': 'magenta', 'hex': '#7A3F5E', 'caps': NO_WEB},
     {'name': 'Page Builder', 'file': 'page-builder.txt', 'shape': 'hex', 'color': 'cyan', 'hex': '#2F6E7A', 'caps': NO_WEB},
     {'name': 'Outreach Writer', 'file': 'outreach-writer.txt', 'shape': 'star6', 'color': 'orange', 'hex': '#8A5A2E', 'caps': NO_WEB},

@@ -9,7 +9,7 @@ import {imageDataUrl} from './book-builder.mjs';
 import {imageSize} from './book-pictures.mjs';
 import {contrastProblems} from './carousel-builder.mjs';
 import {parsePageMd, pageHtml, pageWordProblems, requiredSections, pageFiles, zipStore, pageCheckNote, PAGE_PLATFORMS, PAGE_CHECK_SCRIPT, posterPath, businessName} from './pack-page.mjs';
-import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
+import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, panelShape, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
 
 // Max build 7 (22 Nov 2026): JJBM's busy photos (branches, leaves, gravel) made a 15 s 1440 px video over 20 MB and the save failed.
 // The encoder now keeps quality (CRF 18) but never goes over 8 Mbit/s (a 15 s video stays near 15 MB; Meta and others re-encode
@@ -109,7 +109,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       const {images, notes, missing} = await loadPhotos([ad], Math.max(...[...stills, ...videos].map(f => f.width)));
       if (missing.length) return text({passed: false, toFix: missing});
       const {rel: scratch, dir: scratchDir} = await work(folder, platform), results = [];
-      for (const f of stills) results.push(await drawStill({html: stillPage({item: ad, brand, f, images}), f, rel: `${folder}/${platform}/${ad.name}-${f.id}.jpg`, scratch}));
+      for (const f of stills) results.push(await drawStill({html: stillPage({item: ad, brand, f, images, gp: panelShape(f)}), f, rel: `${folder}/${platform}/${ad.name}-${f.id}.jpg`, scratch}));
       for (const f of videos) results.push(await drawVideo({html: videoPage({cards: [ad], brand, f, images, seconds: AD_VIDEO_SECONDS}), f, rel: `${folder}/${platform}/${ad.name}-${f.id}.mp4`, scratch, scratchDir, seconds: AD_VIDEO_SECONDS, cards: 1}));
       return finish({tool: 'make_pack_ad', platform, folder, name: ad.name, spec, results, notes, missing});
     });
@@ -152,6 +152,11 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
         try { data = await readFile(await teamFolder.target(null, f.from)); } catch (error) { if (error.code === 'ENOENT') { toFix.push(`page.md names ${f.name} for ${f.platform}, but ${f.from} does not exist.`); continue; } throw error; }
         await teamFolder.writeBytes(null, `${dir}/${f.to}`, data, {maxFileBytes: VIDEO_MAX_FILE_BYTES}); bytes += data.length;
         if (f.platform !== 'form' && /\.(jpe?g|png)$/i.test(f.name)) (zipParts[f.platform] ||= []).push({name: `${business}-${f.platform}/${f.name}`, data});
+        if (f.platform === 'form' && /\.(jpe?g|png)$/i.test(f.name)) {
+          // Build 13: the page shows a light copy of the form photo (the original can be 12 MB); the download stays the original.
+          try { const {stdout} = await ffmpeg(['-i', await teamFolder.target(null, `${dir}/${f.to}`), '-vf', "scale='min(1200,iw)':-2", '-q:v', '3', '-f', 'image2', '-c:v', 'mjpeg', 'pipe:1'], {signal});
+            if (stdout.length) { const shown = posterPath('form', f.name); await teamFolder.writeBytes(null, `${dir}/${shown}`, stdout); posters.add(shown); bytes += stdout.length; } } catch { /* the page then shows the original */ }
+        }
         if (/\.mp4$/i.test(f.name)) {
           // Build 12: a still for each video, so the page loads no video until it is clicked.
           try { const {stdout} = await ffmpeg(['-ss', '0.5', '-i', await teamFolder.target(null, `${dir}/${f.to}`), '-frames:v', '1', '-vf', "scale='min(1080,iw)':-2", '-q:v', '3', '-f', 'image2', '-c:v', 'mjpeg', 'pipe:1'], {signal});

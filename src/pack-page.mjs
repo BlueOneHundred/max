@@ -77,7 +77,7 @@ export function pageFiles(page, business) {
 const pretty = s => esc(s).replace(/&quot;(.+?)&quot;/g, '“$1”');
 const NAMES = {facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn', x: 'X'};
 const shapeOf = name => { const m = String(name).match(/(\d+)x(\d+)\.(?:jpe?g|png|mp4)$/i); return m ? `${m[1]}:${m[2]}` : ''; };
-export const posterPath = (platform, name) => `posters/${platform}/${String(name).replace(/\.mp4$/i, '.jpg')}`;
+export const posterPath = (platform, name) => `posters/${platform}/${String(name).replace(/\.(mp4|png)$/i, '.jpg')}`;
 export function businessName(page) { return String(page.title || '').replace(/^Your new ads,\s*/i, '').trim() || String(page.madeFor || '').replace(/^Made for\s*/i, '').split('·')[0].trim(); }
 export function initials(name) {
   const words = String(name).replace(/&/g, ' ').split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w));
@@ -116,7 +116,7 @@ export function pageData({page, business, zips = [], posters = new Set()}) {
     if (ad) d.ads.push({id: anchor(t), letter: ad[1], name: ad[2], onimage: unquote(kvText(kv(s, /^on the image$/i))), why: kv(s, /^why$/i)?.list || [], headline: kvText(kv(s, /^headline$/i)), main: kvText(kv(s, /^main text$/i)), files: filesOf(s, posters)});
     else if (/^carousel/.test(low)) d.car = {id: anchor(t), name: t, onimage: unquote(kvText(kv(s, /^on the first card$/i))), why: kv(s, /^why$/i)?.list || [], heads: kv(s, /^headlines/i)?.list || [], main: kvText(kv(s, /^main text$/i)), files: filesOf(s, posters)};
     else if (/^video/.test(low)) d.vid = {id: anchor(t), name: t, onimage: unquote(kvText(kv(s, /^on the first frame$/i))), about: paras(s).join(' '), main: kvText(kv(s, /^main text$/i)), files: filesOf(s, posters)};
-    else if (/^lead form/.test(low)) { const img = filesInLine(kvText(kv(s, /^form image$/i)))[0]; d.lead = {headline: kvText(kv(s, /^form headline$/i)), desc: kvText(kv(s, /^form description$/i)), question: kvText(kv(s, /^question to ask$/i)), img: img ? `files/form/${img.name}` : '', imgdesc: img?.what || ''}; }
+    else if (/^lead form/.test(low)) { const img = filesInLine(kvText(kv(s, /^form image$/i)))[0]; d.lead = {headline: kvText(kv(s, /^form headline$/i)), desc: kvText(kv(s, /^form description$/i)), question: kvText(kv(s, /^question to ask$/i)), img: img ? `files/form/${img.name}` : '', show: img && posters.has(posterPath('form', img.name)) ? posterPath('form', img.name) : (img ? `files/form/${img.name}` : ''), imgdesc: img?.what || ''}; }
     else if (low === 'how we make ads') d.how = paras(s);
     else if (low === 'how to test them') d.test = {steps: s.blocks.filter(b => b.type === 'ol').flatMap(b => b.items), after: paras(s)};
     else if (low === 'if you found these useful') d.pay = (kvText(kv(s, /^buttons$/i)).match(/\$\d+/g) || []);
@@ -144,6 +144,7 @@ function clientMain(D) {
       if (navigator.clipboard) navigator.clipboard.writeText(c.dataset.t).then(done, () => {}); return; }
     const pl = ev.target.closest('.play');
     if (pl) { const v = document.createElement('video'); v.src = pl.dataset.src; v.controls = true; v.autoplay = true; v.muted = true; v.playsInline = true; v.preload = 'auto';
+      v.addEventListener('loadedmetadata', () => { if (v.duration && v.duration <= 10) v.loop = true; }); // build 13: a short ad video plays round again
       stopVideos(v); pl.parentElement.replaceWith(v); v.addEventListener('play', () => stopVideos(v)); return; }
     const t = ev.target.closest('.tab');
     if (t) { plat = t.dataset.p; stopVideos(); views.forEach(x => x.render()); }
@@ -205,7 +206,7 @@ function clientMain(D) {
   }
   if (D.lead) {
     const l = D.lead, el = $('lead-form'), m = l.question.match(/^"?([^"(]+)"?\s*\(([^)]*)\)/), q = m ? m[1].trim() : l.question, opts = m ? m[2].split('/').map(s => s.trim()) : [];
-    el.innerHTML = `<h2>Lead form</h2><div class="card"><div class="adgrid"><div><div class="formmock">${l.img ? `<img src="${l.img}" alt="${esc(l.imgdesc)}">` : ''}<div class="in"><h4>${esc(l.headline)}</h4><p>${esc(l.desc)}</p><div class="q">${esc(q)}</div>${opts.map(o => `<div class="opt">${esc(o)}</div>`).join('')}<div class="submit">Submit</div></div></div>`
+    el.innerHTML = `<h2>Lead form</h2><div class="card"><div class="adgrid"><div><div class="formmock">${l.img ? `<img src="${l.show || l.img}" alt="${esc(l.imgdesc)}">` : ''}<div class="in"><h4>${esc(l.headline)}</h4><p>${esc(l.desc)}</p><div class="q">${esc(q)}</div>${opts.map(o => `<div class="opt">${esc(o)}</div>`).join('')}<div class="submit">Submit</div></div></div>`
       + (l.img ? `<div class="under"><span>Form image: ${esc(l.imgdesc)}</span><a class="dl" href="${l.img}" download>Download the photo</a></div>` : '')
       + `</div><div><div class="kicker">What to put in your form</div>${l.headline ? copyBox('Form headline', l.headline) : ''}${l.desc ? copyBox('Form description', l.desc) : ''}${l.question ? copyBox('Question to ask', l.question) : ''}</div></div></div>`;
   }
@@ -232,6 +233,7 @@ export function pageHtml({page, business, brand = {}, zips = [], posters = new S
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${esc(page.title || 'Your new ads')}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F6B3A'/%3E%3Ctext x='32' y='46' font-family='Arial,sans-serif' font-weight='700' font-size='40' text-anchor='middle' fill='white'%3EM%3C/text%3E%3C/svg%3E">
 <style>
 :root{--blue:${blue};--green:${green};--ink:#14213d;--muted:#56607a;--line:#e1e6ef;--bg:#f4f6fa}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -272,7 +274,9 @@ button{font:inherit;cursor:pointer}
 .shape.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .stage{background:#eef1f6;border-radius:16px;height:min(70vh,660px);display:flex;align-items:center;justify-content:center;padding:18px;position:relative}
 .stage img,.stage video{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 8px 30px rgba(20,33,61,.18);display:block;background:#000}
-.player{position:relative;max-width:100%;max-height:100%;display:flex}
+/* build 13: the poster keeps its own shape (a 9:16 poster was stretched on desktop) and the play button sits on its centre */
+.player{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.player img{width:auto;height:auto;max-width:100%;max-height:100%}
 .noposter{width:300px;height:420px;max-width:100%;border-radius:10px;background:#1b2436}
 .player .play{position:absolute;inset:0;margin:auto;width:84px;height:84px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:34px;display:flex;align-items:center;justify-content:center;padding-left:6px}
 .player .play:hover{background:var(--blue)}
@@ -359,7 +363,7 @@ ${d.other.map(otherHtml).join('\n')}
 export const PAGE_CHECK_SCRIPT = `(async () => {
   const D = window.PACK || {}, out = {badImages: [], badVideos: [], overflow: false, cards: 0, wantCards: 0, height: 0};
   const all = [...(D.ads || []), D.car, D.vid].filter(Boolean).flatMap(x => Object.values(x.files || {}).flatMap(f => f.items || []));
-  const imgs = [...new Set([...all.filter(i => !i.video).map(i => i.path), ...all.filter(i => i.poster).map(i => i.poster), ...(D.lead && D.lead.img ? [D.lead.img] : [])])];
+  const imgs = [...new Set([...all.filter(i => !i.video).map(i => i.path), ...all.filter(i => i.poster).map(i => i.poster), ...(D.lead && D.lead.img ? [D.lead.show || D.lead.img] : [])])];
   const vids = [...new Set(all.filter(i => i.video).map(i => i.path))];
   await Promise.all(imgs.map(src => new Promise(ok => { const i = new Image(); i.onload = () => { if (!i.naturalWidth) out.badImages.push(src); ok(); }; i.onerror = () => { out.badImages.push(src); ok(); }; i.src = src; })));
   for (const src of vids) await new Promise(ok => { const v = document.createElement('video'); let done = false; const end = good => { if (done) return; done = true; if (!good) out.badVideos.push(src); v.removeAttribute('src'); v.load(); ok(); };

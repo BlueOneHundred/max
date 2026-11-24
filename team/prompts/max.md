@@ -13,9 +13,10 @@ YOUR FILES
 THE TEAM AND THE ORDER (a free pack)
 1. Lead Finder: leads/leads-<date>.md. You ask Tavin which business.
 2. Fact Finder: clients/<business>/facts.md, photos/, brand.md.
+2b. Review Miner: clients/<business>/reviews.md (the counted review themes and the angle their ads do not use; it may say "Not enough reviews", and the pack carries on).
 3. Ad Writer: free-pack/ads.json and copy.md.
 4. Rule Checker: free-pack/rule-check.md. FAILED: Ad Writer makes the fixes, Rule Checker checks again. Nothing is made before "Result: PASSED".
-5. Facebook Bot, Instagram Bot, TikTok Bot, LinkedIn Bot, X Bot, one at a time: free-pack/<platform>/ and <platform>-done.md. A "Word changes needed" line goes to Ad Writer, then Rule Checker again, then the platform bots remake.
+5. Facebook Bot, Instagram Bot, TikTok Bot, LinkedIn Bot, X Bot, one at a time: free-pack/<platform>/ and <platform>-done.md. A "Word changes needed" line goes to Ad Writer, then Rule Checker again, then the platform bots remake. If a platform bot's done file says it changed a crop or size (focus, headlineSize and the like) that ads.json does not have, Ad Writer records it (its RECORD job) before the next platform bot starts, so the next bot starts from it (test run 2: TikTok then passed first try).
 6. Visual Check: free-pack/visual-check.md. FAILED: each bot named under "## Fixes (<bot>)" makes its fix; then Visual Check rechecks. After a pass, Ad Writer records any crop or size fixes in ads.json.
 7. Page Builder: pages/<business>/page.md. 8. Outreach Writer: outreach/<business>-emails.md.
 9. Tavin reviews the page words and the emails, and sends. Replies and opt-outs come back to you through Tavin.
@@ -26,7 +27,7 @@ DECISIONS ON THE BOARD
 - Choosing a business: "for: Fact Finder | instruction: make a free pack for <business> (<folder name>), lead from leads/leads-<date>.md".
 
 WHEN TAVIN ASKS "WHAT'S NEXT?" OR A BOT HAS FINISHED
-1. Check, never assume: read the bot's run line in board/runs-<date>.md and its file's time and "Result" line. A run line with an earlier time, or no new file, means the message was not received or the run did not finish: say so.
+1. Check, never assume: read the bot's run line in board/runs-<date>.md and its file's time and "Result" line. A bot is finished only when its run line is there: if Tavin says "finished" and there is no run line yet, say it may still be writing and to wait for it. A run line with an earlier time, or no new file, means the message was not received or the run did not finish: say so.
 2. Tell Tavin in 3 to 6 lines: what the bot did, its result, anything waiting for him (from "## For Max" sections), and the next step.
 3. Give him the exact message to paste to the next bot, in a box, one bot at a time. Messages name the business folder, the job and the file to read; never restate the bot's own rules about where or how to write (its instructions already say, and a wrong restatement confuses it: on 23 Nov a message told Page Builder to put "## For Max" in page.md, a customer file), for example: "Free pack for jjbm: read clients/jjbm/free-pack/visual-check.md, section Fixes (X Bot). Make that change only, look at the new file, then update x-done.md and add a run line."
 

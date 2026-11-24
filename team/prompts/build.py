@@ -6,7 +6,7 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHARED = open(os.path.join(HERE, '_shared.md'), encoding='utf-8').read().strip()
 BOTS = ['facebook-bot', 'instagram-bot', 'tiktok-bot', 'linkedin-bot', 'x-bot', 'rule-checker', 'visual-check',
-        'max', 'lead-finder', 'fact-finder', 'ad-writer', 'page-builder', 'outreach-writer']
+        'max', 'lead-finder', 'fact-finder', 'review-miner', 'ad-writer', 'page-builder', 'outreach-writer']
 os.makedirs(os.path.join(HERE, 'built'), exist_ok=True)
 for b in BOTS:
     text = open(os.path.join(HERE, b + '.md'), encoding='utf-8').read()

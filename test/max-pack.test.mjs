@@ -261,3 +261,39 @@ test('build 12: the new page design (tabs, posters, working carousel, Tavin\'s t
   const script = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
   assert.doesNotThrow(() => new Function('window', 'document', script), 'the page script parses');
 });
+
+test('build 13: tall (9:16) ads and videos use one panel; other shapes keep the fade; ad videos glide', () => {
+  const f = s => P.packFormats(P.parseSpec(sheet(s), s), 'ad');
+  const fb = P.parseSpec(sheet('facebook'), 'facebook'), all = [...P.packFormats(fb, 'ad'), ...P.packFormats(fb, 'carouselVideo')];
+  const story = all.find(x => P.shapeOf(x) === 'story'), feed = all.find(x => P.shapeOf(x) !== 'story');
+  assert.ok(story && feed);
+  assert.equal(P.panelShape(story), true); assert.equal(P.panelShape(feed), false);
+  const item = {headline: 'Drain cleaning in Okotoks.', sub: 'Since 2006.', badge: 'Ask us for a quote'}, brand = {name: 'TEST\nCO', place: 'TOWN', panel: '#0A2616'};
+  assert.match(P.stillPage({item, brand, f: story, gp: true}), /class="f story stack gp"/, 'panel frame, name under the words');
+  assert.doesNotMatch(P.stillPage({item, brand, f: feed}), /\bgp\b"/, 'feed shapes keep the fade');
+  assert.match(P.packCss(story, brand), /\.f\.gp \.shade\{display:none\}/); assert.match(P.packCss(story, brand), /\.gpanel\{position:absolute;background:rgba\(10,38,22,\.9\)/);
+  assert.match(P.STILL_SCRIPT, /panel\(fr,/);
+  assert.match(P.PACK_JS(story), /function panel\(fr,brandEl\)\{const PAD=4\*PK\.u/);
+  const one = P.videoPage({cards: [item], brand, f: story, images: {}, seconds: 8});
+  assert.match(one, /class="f story stack gp"/); assert.match(one, /glideSetup/); assert.match(one, /GL=\{SPAN:40,PX:900,ZOOM:0\.12\}/);
+  const many = P.videoPage({cards: [item, item, item], brand, f: story, images: {}});
+  assert.equal((many.match(/class="f story stack gp"/g) || []).length, 3, 'every card of a tall carousel video has the panel');
+  assert.match(many, /every card's panel the same width/);
+  const wide = all.find(x => P.shapeOf(x) === 'wide') || P.packFormats(P.parseSpec(sheet('linkedin'), 'linkedin'), 'carouselVideo').find(x => P.shapeOf(x) === 'wide');
+  if (wide) assert.doesNotMatch(P.videoPage({cards: [item, item], brand, f: wide, images: {}}), /class="f wide[^"]*\bgp\b/);
+  assert.ok(f('tiktok').length >= 0);
+});
+
+test('build 13: the page keeps poster shapes, loops short videos, shows a light form photo and has a tab icon', async () => {
+  const G = await import('../src/pack-page.mjs');
+  const md = ['# Your new ads, Test Co', '', '## Intro', '', 'Hello.', '', '## Lead form', '', 'Form headline: A quote', '', 'Form image: own-01.jpg (your vans)', '', '## How to test them', '', '1. Run them.', '', '## If you found these useful', '', 'Buttons: $25 / $50 / $100 / $250 (links added by Tavin)'].join('\n');
+  const page = G.parsePageMd(md);
+  assert.equal(G.posterPath('form', 'own-01.png'), 'posters/form/own-01.jpg');
+  const withShow = G.pageData({page, business: 'test-co', posters: new Set(['posters/form/own-01.jpg'])});
+  assert.equal(withShow.lead.img, 'files/form/own-01.jpg', 'the download stays the original'); assert.equal(withShow.lead.show, 'posters/form/own-01.jpg');
+  assert.equal(G.pageData({page, business: 'test-co'}).lead.show, 'files/form/own-01.jpg', 'no light copy: the original is shown');
+  const html = G.pageHtml({page, business: 'test-co', brand: {}, zips: [], posters: new Set()});
+  assert.match(html, /\.player img\{width:auto;height:auto;max-width:100%;max-height:100%\}/);
+  assert.match(html, /v\.duration <= 10\) v\.loop = true/);
+  assert.match(html, /<link rel="icon" href="data:image\/svg\+xml,/); assert.ok(!/https?:\/\//.test(html), 'still no network links');
+});
