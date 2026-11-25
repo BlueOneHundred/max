@@ -93,6 +93,15 @@ From test run 2 (McCance Plumbing and Heating, Okotoks, Alberta: one usable phot
 - Instructions (team/prompts, Desktop\Max\prompts): Ad Writer crops only with show (measured on the zoomed photo), knows which fields each layout shows, writes the name line in capitals and short split-claim headlines; Rule Checker checks the show box against the photo and fails focus and zoom; Ad Maker never changes a crop and copies each "Photo shown" line into made.md; decision I10 (a Google rating read by Review Miner from the listing is a T1 source) written into Ad Writer and Rule Checker.
 - Proved in Chrome on McCance's photo: the part shown matches the box asked. Tests: 1 new; full suite 468 pass, 1 skipped; test:team 18 pass.
 
+## Max build 16 (25 Nov 2026): nothing weak in the first set
+Tavin on the McCance WOW set: every ad we send is a first impression, so nothing may be weak.
+- **No-photo big-review and big-number** (leave out photo): the customer's words, or the number, fill the ad; a dark band (big-review) or a thin rule (big-number) holds the name and button. Approved by Tavin: good beside a photo ad, never two no-photo ads together.
+- **Lines the writer sets never wrap**: a headline with "\n" gets class "lines" (no wrapping); the text shrinks until every line fits, and a line too long at the smallest size is refused (on McCance "PINPOINTED ON CAMERA." had wrapped).
+- **bold-text is all white**: the pale highlight on the green looked like a mistake; ** marks are ignored there.
+- **split-claim**: the photo frame starts at the panel's bottom edge (552 x 1080), so the part asked is the part seen; the footnote moved onto the dark panel under the button (it covered the photo).
+- Instructions: Ad Writer (photo must match the words, else a no-photo design; never two no-photo together; ad 1 always a photo; the van number may show and is listed for the page; quotes must say a result; big-review problem as a statement with "!"; short set lines; the top-agency check); Rule Checker (the same checks); Ad Maker (centred subject, no words over lettering, no same crop, top-agency check); Page Builder (crop offer for "the new ads").
+- Proved in Chrome on McCance: the set mocked for Tavin (research\step4-wow-ads\maker-test\mccance-build16-check.jpg). Tests: 1 new; full suite 469 pass, 1 skipped; test:team 18 pass.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

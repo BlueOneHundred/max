@@ -129,3 +129,22 @@ test('build 15: "show" names the part of the photo; bad boxes and mixing with fo
   assert.match(W.WOW_SCRIPT, /shown\.push/);
   assert.deepEqual(W.PHOTO_BOXES['big-review'], [1080, 330]);
 });
+
+test('build 16: no-photo big-review and big-number; set lines never wrap; bold-text all white; split frame starts at the panel', () => {
+  for (const layout of ['big-review', 'big-number']) {
+    const {photo, ...rest} = good[layout];
+    assert.deepEqual(W.wowWordProblems({name: 'x', layout, ...base, ...rest}), [], layout);
+    const html = W.wowPage({ad: {name: 'x', layout, ...base, ...rest}, brand, images: {}});
+    assert.ok(!html.includes('class="photo'), layout + ' draws no photo frame');
+    assert.ok(html.includes('class="band"') || html.includes('class="rule"'));
+  }
+  const bold = W.wowPage({ad: {name: 'b', layout: 'bold-text', ...base, ...good['bold-text'], headline: 'Pinpointed\non camera.\n**Video on a USB.**'}, brand, images: {}});
+  assert.match(bold, /class="fit lines" data-k="headline"/);
+  assert.match(bold, /h1 em\{color:#fff\}/);
+  const one = W.wowPage({ad: {name: 'b', layout: 'bold-text', ...base, ...good['bold-text'], headline: 'Tank or tankless we fix it'}, brand, images: {}});
+  assert.match(one, /class="fit" data-k="headline"/);
+  assert.deepEqual(W.PHOTO_BOXES['split-claim'], [552, 1080]);
+  const split = W.wowPage({ad: {name: 's', layout: 'split-claim', ...base, ...good['split-claim']}, brand, images: {'clients/m/photos/van.jpg': 'data:image/png;base64,AA=='}});
+  assert.match(split, /\.side\{right:0;top:0;width:552px/);
+  assert.match(split, /data-k="footnote" style="left:60px;top:926px/);
+});

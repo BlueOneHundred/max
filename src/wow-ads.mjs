@@ -12,9 +12,9 @@ export const BAND_TEXT = 'SAMPLE PHOTO · NOT YOUR TEAM';
 export const WOW_NEEDS = {
   'problem-fix': ['headline', 'proof', 'photo'],
   'split-claim': ['kicker', 'headline', 'proofBig', 'proofText', 'photo'],
-  'big-review': ['kicker', 'quote', 'who', 'photo'],
+  'big-review': ['kicker', 'quote', 'who'],
   'bold-text': ['kicker', 'headline', 'badge'],
-  'big-number': ['kicker', 'number', 'numberLine', 'photo'],
+  'big-number': ['kicker', 'number', 'numberLine'],
   preview: ['headline', 'proof', 'photo'],
 };
 // Fields each layout shows; anything else given is ignored and named in the notes.
@@ -84,7 +84,7 @@ export function wowColours(brand = {}) {
 // ("x1% y1% x2% y2%", left top right bottom). The page never shows anything outside that box: it fills the layout's photo
 // box from it, trimming evenly from the long side when the shapes differ, and reports the part really shown. focus and zoom remain
 // for older choices but bots should use show: a bot cannot see where focus and zoom land (McCance test, 25 Nov).
-export const PHOTO_BOXES = {'problem-fix': [960, 500], preview: [960, 500], 'split-claim': [560, 1080], 'big-review': [1080, 330], 'big-number': [1080, 400]};
+export const PHOTO_BOXES = {'problem-fix': [960, 500], preview: [960, 500], 'split-claim': [552, 1080], 'big-review': [1080, 330], 'big-number': [1080, 400]};
 export function parseShow(v) {
   const m = String(v || '').trim().match(/^(\d+(?:\.\d+)?)%?\s+(\d+(?:\.\d+)?)%?\s+(\d+(?:\.\d+)?)%?\s+(\d+(?:\.\d+)?)%?$/);
   if (!m) return null;
@@ -122,6 +122,7 @@ em{font-style:normal;color:${C.highlight}}
 .logo{position:absolute;font-weight:800;font-size:22px;letter-spacing:3px;white-space:nowrap}
 .foot{position:absolute;font-size:15px;line-height:1.3;font-weight:600}
 .fit{overflow:hidden}
+.lines{white-space:nowrap}
 `;
 }
 
@@ -137,26 +138,40 @@ h1{position:absolute;left:60px;top:600px;width:960px;height:250px;font-family:'A
 .row{position:absolute;left:60px;top:868px;width:960px;height:92px;display:flex;align-items:center;justify-content:space-between;gap:24px}
 .proof{background:#fff;color:${C.panel};border-radius:16px;padding:.47em .68em;font-weight:800;font-size:38px;white-space:nowrap;line-height:1.15}
 .proof em{color:${C.accent}}`,
-      html: `<div class="bar"></div>${photoTag(ad, images, 'card')}<h1 class="fit" data-k="headline" data-max="118" data-min="80"><span>${R(ad.headline)}</span></h1>
+      html: `<div class="bar"></div>${photoTag(ad, images, 'card')}<h1 class="fit${/\\n|\n/.test(String(ad.headline || '')) ? ' lines' : ''}" data-k="headline" data-max="118" data-min="80"><span>${R(ad.headline)}</span></h1>
 <div class="row fit" data-k="row" data-max="38" data-min="26" data-scale=".proof,.btn"><div class="proof" data-k="proof">${R(ad.proof)}</div>${btn('line')}</div>
 ${logo(`left:60px;bottom:38px;opacity:.85`)}${foot(`right:60px;bottom:36px;width:420px;text-align:right;color:rgba(255,255,255,.8)`)}`};
     case 'split-claim':
       return {css: `body{background:#fff}
-.side{right:0;top:0;width:560px;height:1080px}
+.side{right:0;top:0;width:552px;height:1080px}
 .panel{position:absolute;left:0;top:0;width:600px;height:1080px;background:${C.panel};clip-path:polygon(0 0,100% 0,88% 100%,0 100%)}
 .kick{position:absolute;left:60px;top:110px;width:470px;height:60px;color:${C.highlight};font-weight:800;font-size:40px;letter-spacing:4px;text-transform:uppercase;white-space:nowrap}
 h1{position:absolute;left:56px;top:175px;width:470px;height:390px;font-family:'Anton';font-weight:400;line-height:.95;color:#fff;text-transform:uppercase;display:flex;flex-direction:column;justify-content:center}
 .box{position:absolute;left:60px;top:590px;width:440px;height:240px;border:3px solid ${C.highlight};border-radius:18px;padding:22px 28px;color:#fff;display:flex;flex-direction:column;justify-content:center}
 .box .n{font-family:'Anton';white-space:nowrap;line-height:1;color:${C.highlight};overflow:hidden}
 .box .t{font-weight:700;font-size:34px;line-height:1.2;margin-top:6px}
-.btnwrap{position:absolute;left:60px;top:862px;width:440px;height:80px;display:flex;align-items:center}`,
+.btnwrap{position:absolute;left:60px;top:846px;width:440px;height:72px;display:flex;align-items:center}`,
       html: `${photoTag(ad, images, 'side')}<div class="panel"></div><div class="kick fit" data-k="kicker" data-max="40" data-min="28">${R(ad.kicker)}</div>
-<h1 class="fit" data-k="headline" data-max="190" data-min="110"><span>${R(ad.headline)}</span></h1>
+<h1 class="fit${/\\n|\n/.test(String(ad.headline || '')) ? ' lines' : ''}" data-k="headline" data-max="190" data-min="110"><span>${R(ad.headline)}</span></h1>
 <div class="box"><div class="n fit" data-k="proofBig" data-max="104" data-min="64" style="height:112px">${R(ad.proofBig)}</div><div class="t fit" data-k="proofText" data-max="34" data-min="24" style="height:84px">${R(ad.proofText)}</div></div>
 <div class="btnwrap fit" data-k="row" data-max="30" data-min="24" data-scale=".btn">${btn('fill')}</div>
-<div class="logo fit" data-k="logo" data-max="20" data-min="15" style="left:60px;bottom:34px;width:440px;height:58px;white-space:normal;line-height:1.35;color:#fff;display:flex;align-items:flex-end">${esc(ad.logoLine)}</div>${foot(`right:24px;bottom:18px;max-width:470px;text-align:right;color:#fff;background:rgba(0,0,0,.62);padding:8px 12px;border-radius:8px`)}`};
+<div class="logo fit" data-k="logo" data-max="20" data-min="15" style="left:60px;bottom:34px;width:440px;height:58px;white-space:normal;line-height:1.35;color:#fff;display:flex;align-items:flex-end">${esc(ad.logoLine)}</div>${foot(`left:60px;top:926px;width:440px;font-size:14px;line-height:1.28;color:${C.soft};opacity:.9`)}`};
     case 'big-review': {
       const stars = Math.min(Math.max(Math.round(Number(ad.stars) || 0), 0), 5);
+      // Build 16: without a photo the customer's words fill the ad, over a dark band with the name and button.
+      if (!ad.photo) return {css: `body{background:${C.soft};color:${C.panel}}
+.kick{position:absolute;left:70px;top:90px;max-width:940px;background:${C.panel};color:#fff;font-weight:800;font-size:34px;letter-spacing:3px;padding:14px 26px;border-radius:12px;text-transform:uppercase;white-space:nowrap}
+.q{position:absolute;left:52px;top:165px;font-family:'Archivo Black';font-size:300px;color:${C.accent};line-height:1}
+h1{position:absolute;left:70px;top:340px;width:940px;height:370px;font-family:'Archivo Black';font-weight:400;line-height:1.04;letter-spacing:-1px;display:flex;flex-direction:column;justify-content:center}
+h1 em{color:${C.accent}}
+.who{position:absolute;left:70px;top:730px;width:940px;height:56px;font-size:32px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:18px}
+.who .stars{color:${C.accent};display:inline-flex;gap:4px;font-size:36px}
+.band{position:absolute;left:0;bottom:0;width:1080px;height:170px;background:${C.panel}}
+.btnpos{position:absolute;right:60px;bottom:52px}`,
+        html: `<div class="kick fit" data-k="kicker" data-max="34" data-min="24">${R(ad.kicker)}</div><div class="q">“</div>
+<h1 class="fit" data-k="quote" data-max="100" data-min="64"><span>${R(ad.quote)}</span></h1>
+<div class="who fit" data-k="who" data-max="32" data-min="22">${stars ? `<span class="stars">${STAR(C.accent).repeat(stars)}</span>` : ''}<span>${R(ad.who)}</span></div>
+${foot(`left:70px;top:800px;width:940px;color:${C.panel};opacity:.85`)}<div class="band"></div><div class="btnpos">${btn('fill')}</div>${logo(`left:70px;bottom:72px;color:#fff;opacity:.92`)}`};
       return {css: `body{background:${C.soft};color:${C.panel}}
 .kick{position:absolute;left:70px;top:80px;max-width:940px;background:${C.panel};color:#fff;font-weight:800;font-size:34px;letter-spacing:3px;padding:14px 26px;border-radius:12px;text-transform:uppercase;white-space:nowrap}
 .q{position:absolute;left:52px;top:150px;font-family:'Archivo Black';font-size:260px;color:${C.accent};line-height:1}
@@ -176,15 +191,26 @@ ${photoTag(ad, images, 'strip')}<div class="btnpos">${btn('dark')}</div>${logo(`
       return {css: `body{background:${C.accent}}
 .stripe{position:absolute;left:0;top:0;width:100%;height:14px;background:${C.panel}}
 .kick{position:absolute;left:70px;top:100px;width:940px;height:60px;font-weight:800;font-size:44px;letter-spacing:5px;color:${C.pale};text-transform:uppercase;white-space:nowrap}
+.kick em{color:${C.pale}}
 h1{position:absolute;left:64px;top:175px;width:960px;height:610px;font-family:'Anton';font-weight:400;line-height:.96;text-transform:uppercase;display:flex;flex-direction:column;justify-content:center}
-h1 em{color:${C.pale}}
+h1 em{color:#fff}
 .row{position:absolute;left:70px;top:812px;width:940px;height:96px;display:flex;align-items:center;justify-content:space-between;gap:24px}
 .badge{background:#fff;color:${C.panel};border-radius:16px;padding:.47em .74em;font-weight:800;font-size:38px;white-space:nowrap;line-height:1.15}`,
       html: `<div class="stripe"></div><div class="kick fit" data-k="kicker" data-max="44" data-min="30">${R(ad.kicker)}</div>
-<h1 class="fit" data-k="headline" data-max="190" data-min="110"><span>${R(ad.headline)}</span></h1>
+<h1 class="fit${/\\n|\n/.test(String(ad.headline || '')) ? ' lines' : ''}" data-k="headline" data-max="190" data-min="110"><span>${R(ad.headline)}</span></h1>
 <div class="row fit" data-k="row" data-max="38" data-min="26" data-scale=".badge,.btn"><div class="badge" data-k="badge">${R(ad.badge)}</div>${btn('line')}</div>
 ${logo(`left:70px;bottom:44px;opacity:.92`)}${foot(`right:70px;bottom:42px;width:420px;text-align:right;color:${C.pale}`)}`};
     case 'big-number':
+      // Build 16: without a photo the number fills the ad; a thin rule and the name and button sit at the bottom.
+      if (!ad.photo) return {css: `.kick{position:absolute;left:70px;top:110px;width:940px;height:60px;font-weight:800;font-size:44px;letter-spacing:5px;color:${C.highlight};text-transform:uppercase;white-space:nowrap}
+.n{position:absolute;left:58px;top:180px;width:964px;height:470px;font-family:'Anton';line-height:1;color:#fff;white-space:nowrap;display:flex;align-items:center}
+.sub{position:absolute;left:70px;top:660px;width:940px;height:90px;font-weight:800;font-size:58px;white-space:nowrap;display:flex;align-items:center}
+.rule{position:absolute;left:70px;top:830px;width:940px;height:4px;background:${C.accent}}
+.btnpos{position:absolute;right:70px;bottom:56px}`,
+        html: `<div class="kick fit" data-k="kicker" data-max="44" data-min="30">${R(ad.kicker)}</div>
+<div class="n fit" data-k="number" data-max="400" data-min="180"><span>${R(ad.number)}</span></div>
+<div class="sub fit" data-k="numberLine" data-max="58" data-min="34"><span>${R(ad.numberLine)}</span></div>
+${foot(`left:70px;top:760px;width:940px;color:${C.soft}`)}<div class="rule"></div><div class="btnpos">${btn('fill')}</div>${logo(`left:70px;bottom:74px;opacity:.9`)}`};
       return {css: `.kick{position:absolute;left:70px;top:80px;width:940px;height:60px;font-weight:800;font-size:44px;letter-spacing:5px;color:${C.highlight};text-transform:uppercase;white-space:nowrap}
 .n{position:absolute;left:58px;top:140px;width:964px;height:350px;font-family:'Anton';line-height:1;color:#fff;white-space:nowrap;display:flex;align-items:center}
 .sub{position:absolute;left:70px;top:505px;width:940px;height:80px;font-weight:800;font-size:52px;white-space:nowrap;display:flex;align-items:center}
