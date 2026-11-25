@@ -123,6 +123,7 @@ em{font-style:normal;color:${C.highlight}}
 .foot{position:absolute;font-size:15px;line-height:1.3;font-weight:600}
 .fit{overflow:hidden}
 .lines{white-space:nowrap}
+h1 span{text-wrap:balance}
 `;
 }
 
@@ -160,16 +161,16 @@ h1{position:absolute;left:56px;top:175px;width:470px;height:390px;font-family:'A
       const stars = Math.min(Math.max(Math.round(Number(ad.stars) || 0), 0), 5);
       // Build 16: without a photo the customer's words fill the ad, over a dark band with the name and button.
       if (!ad.photo) return {css: `body{background:${C.soft};color:${C.panel}}
-.kick{position:absolute;left:70px;top:90px;max-width:940px;background:${C.panel};color:#fff;font-weight:800;font-size:34px;letter-spacing:3px;padding:14px 26px;border-radius:12px;text-transform:uppercase;white-space:nowrap}
-.q{position:absolute;left:52px;top:165px;font-family:'Archivo Black';font-size:300px;color:${C.accent};line-height:1}
-h1{position:absolute;left:70px;top:340px;width:940px;height:370px;font-family:'Archivo Black';font-weight:400;line-height:1.04;letter-spacing:-1px;display:flex;flex-direction:column;justify-content:center}
+.kick{position:absolute;left:70px;top:80px;max-width:940px;background:${C.panel};color:#fff;font-weight:800;font-size:64px;letter-spacing:4px;padding:16px 32px;border-radius:14px;text-transform:uppercase;white-space:nowrap}
+.q{position:absolute;left:52px;top:205px;font-family:'Archivo Black';font-size:300px;color:${C.accent};line-height:1}
+h1{position:absolute;left:70px;top:370px;width:940px;height:340px;font-family:'Archivo Black';font-weight:400;line-height:1.04;letter-spacing:-1px;display:flex;flex-direction:column;justify-content:center}
 h1 em{color:${C.accent}}
 .who{position:absolute;left:70px;top:730px;width:940px;height:56px;font-size:32px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:18px}
 .who .stars{color:${C.accent};display:inline-flex;gap:4px;font-size:36px}
 .band{position:absolute;left:0;bottom:0;width:1080px;height:170px;background:${C.panel}}
 .btnpos{position:absolute;right:60px;bottom:52px}`,
-        html: `<div class="kick fit" data-k="kicker" data-max="34" data-min="24">${R(ad.kicker)}</div><div class="q">“</div>
-<h1 class="fit" data-k="quote" data-max="100" data-min="64"><span>${R(ad.quote)}</span></h1>
+        html: `<div class="kick fit" data-k="kicker" data-max="64" data-min="30">${R(ad.kicker)}</div><div class="q">“</div>
+<h1 class="fit${/\\n|\n/.test(String(ad.quote || '')) ? ' lines' : ''}" data-k="quote" data-max="100" data-min="64"><span>${R(ad.quote)}</span></h1>
 <div class="who fit" data-k="who" data-max="32" data-min="22">${stars ? `<span class="stars">${STAR(C.accent).repeat(stars)}</span>` : ''}<span>${R(ad.who)}</span></div>
 ${foot(`left:70px;top:800px;width:940px;color:${C.panel};opacity:.85`)}<div class="band"></div><div class="btnpos">${btn('fill')}</div>${logo(`left:70px;bottom:72px;color:#fff;opacity:.92`)}`};
       return {css: `body{background:${C.soft};color:${C.panel}}
@@ -183,7 +184,7 @@ h1 em{color:${C.accent}}
 .btnpos{position:absolute;right:60px;bottom:40px}
 .logo{background:rgba(255,255,255,.94);padding:10px 16px;border-radius:8px;color:${C.panel}}`,
       html: `<div class="kick fit" data-k="kicker" data-max="34" data-min="24">${R(ad.kicker)}</div><div class="q">“</div>
-<h1 class="fit" data-k="quote" data-max="92" data-min="58"><span>${R(ad.quote)}</span></h1>
+<h1 class="fit${/\\n|\n/.test(String(ad.quote || '')) ? ' lines' : ''}" data-k="quote" data-max="92" data-min="58"><span>${R(ad.quote)}</span></h1>
 <div class="who fit" data-k="who" data-max="30" data-min="22">${stars ? `<span class="stars">${STAR(C.accent).repeat(stars)}</span>` : ''}<span>${R(ad.who)}</span></div>
 ${photoTag(ad, images, 'strip')}<div class="btnpos">${btn('dark')}</div>${logo(`left:60px;bottom:48px;font-size:20px`)}${foot(`left:70px;top:660px;width:940px;color:${C.panel};opacity:.85`)}`};
     }
@@ -247,6 +248,10 @@ for(const el of document.querySelectorAll('.fit')){
  const base=kids.map(k=>parseFloat(getComputedStyle(k).fontSize));let s=max;
  const set=v=>el.dataset.scale?kids.forEach((k,j)=>k.style.fontSize=(base[j]*v/max)+'px'):(el.style.fontSize=v+'px');set(s);
  while(s>min&&over(el)){s-=2;set(s);}
+ // Build 16: words the writer did not break are set in as few lines as the box allows: shrink (down to 72% of the
+ // largest size) while that saves a line, so a quote never leaves one word on its own line ("weekend").
+ if(!el.classList.contains('lines')&&el.querySelector('span')){const sp=el.querySelector('span'),lh=()=>Math.round(sp.getBoundingClientRect().height/parseFloat(getComputedStyle(el).lineHeight==='normal'?s*1.2:getComputedStyle(el).lineHeight));
+  const n0=lh();if(n0>1){let t=s,best=null;while(t>Math.max(min,max*0.72)){t-=2;set(t);if(lh()<n0){best=t;break;}}if(best===null)set(s);else s=best;}}
  if(s<max)shrunk.push({k:el.dataset.k,from:max,to:s});
  if(over(el))problems.push({kind:'too long',k:el.dataset.k,text:el.innerText.slice(0,80)});
 }

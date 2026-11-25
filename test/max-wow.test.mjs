@@ -148,3 +148,11 @@ test('build 16: no-photo big-review and big-number; set lines never wrap; bold-t
   assert.match(split, /\.side\{right:0;top:0;width:552px/);
   assert.match(split, /data-k="footnote" style="left:60px;top:926px/);
 });
+
+test('build 17: unset quotes and headlines are set in as few even lines as fit; a set quote never wraps', () => {
+  assert.match(W.WOW_SCRIPT, /n0>1/); assert.match(W.WOW_SCRIPT, /max\*0\.72/);
+  const {photo, ...rest} = good['big-review'];
+  const set = W.wowPage({ad: {name: 'q', layout: 'big-review', ...base, ...rest, kicker: 'NO HOT WATER!', quote: 'Rapid after hours\nweekend response.'}, brand, images: {}});
+  assert.match(set, /class="fit lines" data-k="quote"/);
+  assert.match(set, /data-k="kicker" data-max="64"/);
+});

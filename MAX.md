@@ -102,6 +102,11 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 - Instructions: Ad Writer (photo must match the words, else a no-photo design; never two no-photo together; ad 1 always a photo; the van number may show and is listed for the page; quotes must say a result; big-review problem as a statement with "!"; short set lines; the top-agency check); Rule Checker (the same checks); Ad Maker (centred subject, no words over lettering, no same crop, top-agency check); Page Builder (crop offer for "the new ads").
 - Proved in Chrome on McCance: the set mocked for Tavin (research\step4-wow-ads\maker-test\mccance-build16-check.jpg). Tests: 1 new; full suite 469 pass, 1 skipped; test:team 18 pass.
 
+## Max build 17 (25 Nov 2026): even lines
+- Tavin on the no-photo quote ad: "Rapid after hours / weekend / response." left "weekend" alone; it must read "Rapid after hours / weekend response.", and "NO HOT WATER!" could then be bigger.
+- Words the writer did not break (quotes, headlines without "\n") are set in as few lines as the box allows: the page shrinks them (down to 72% of the largest size) while that saves a line, with balanced line lengths. A quote may also be set with "\n" (a set line never wraps). The no-photo quote design's problem tag is up to 64 px.
+- Instructions: Ad Writer sets even quote lines and never leaves one word alone on a line. Tests: 1 new; full suite 470 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
