@@ -13,6 +13,7 @@ import {ExtraWorkdays, isWorkday} from './workdays.mjs';
 import {splitDecisions, parseStanding, DEFAULT_STANDING, STANDING_FILE} from './decisions-archive.mjs';
 import {atomicWrite} from './storage-safety.mjs';
 import {AUTO_PICK, chooseCreators, askedHandles, bookRequest, pickReport, minutes} from './auto-pick.mjs';
+import {WOW_BOTS, WOW_STEPS, wowVars, verdictLine, choicesProblems, choicesPhotos, choicesFiles, emailProblems, validBusiness, leadsDone, topLeads, chooseLeads, AB_HEADER, nextVersion, monthSpend, DAILY, leadMessage, leadSecondMessage, reviewSection, readyPage} from './wow-run.mjs';
 
 export const PIPELINE_BOTS = ['Creator Partnerships', 'Creative Studio', 'Edition Writer', 'App Builder', 'Art Director', 'Marketing Kit', 'Visual Check', 'Outreach Writer'];
 // The steps. Saved to pipeline/steps.json in the team folder the first time, so they can change without a build.
@@ -96,8 +97,10 @@ export const localTime = t => { const d = new Date(t); return `${pad(d.getHours(
 export const baseName = b => String(b || '').trim().replace(/\\/g, '/').replace(/^(\.\/)?(Income\/)?ebooks\//i, '').replace(/\/+$/, '');
 export const fill = (s, v) => String(s).replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);
 export const isBook = run => run?.kind === 'book';
-export const runKey = run => isBook(run) ? 'book-' + run.base : run.handle;
-export const runLabel = run => isBook(run) ? `book run ebooks/${run.base}` : `@${run.handle}`;
+// Build 21: Max's WOW runs (src/wow-run.mjs).
+export const isWow = run => run?.kind === 'wow';
+export const runKey = run => isWow(run) ? 'wow-' + run.business : isBook(run) ? 'book-' + run.base : run.handle;
+export const runLabel = run => isWow(run) ? `WOW run ${run.business}` : isBook(run) ? `book run ebooks/${run.base}` : `@${run.handle}`;
 const oneLine = s => String(s || '').replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
 const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 
@@ -121,6 +124,7 @@ export function nextInstruction(decisions) {
 export const secondTryMessage = date => `Second try for today's creators (from the Max app): there is no finished creators/${date}.md yet (no "Status: done" line). Do today's creator search again now, using your rules and the decisions file, with the READY-BOOK TOP-UP FIRST (creators who fit a ready base book), then today's niches if your step budget allows, until the day lists 4 creators. Keep anything already in creators/${date}.md and add to it; save after every niche; end the file with "Status: done". Don't ask questions.`;
 export function stepMessage({run, step, steps}) {
   const list = steps.filter(s => !s.review);
+  if (isWow(run)) return `WOW run for ${run.business} (${run.name}), version ${run.version}, step ${list.indexOf(step) + 1} of ${list.length}: ${fill(step.task, wowVars(run))}. Do this for ${run.business} only, using your rules and the decisions file (I${run.decision}). This message is Tavin's go for your step: do not wait for a go line. Don't ask questions. When you finish, the app checks your files automatically.`;
   if (isBook(run)) return `Book run for ebooks/${run.base} (new base book, niche ${run.niche}, Type: ${run.type}), step ${list.indexOf(step) + 1} of ${list.length}: ${fill(step.task, runVars(run))}. Use your rules and the decisions file (I${run.decision}). In a book run this message is Tavin's go for your step: do not wait for a go line. Don't ask questions. When you finish, the app checks your files automatically.`;
   return `Package run for @${run.handle}, step ${list.indexOf(step) + 1} of ${list.length}: ${step.task}. Do this for @${run.handle} only (base book ${run.base}), using your rules and the decisions file (I${run.decision}). Don't ask questions. When you finish, the app checks your files automatically.`;
 }
@@ -131,6 +135,8 @@ export const PACKAGE_FIX_NOTES = {visual: {
   'Visual Check': 'Check again the carousel Marketing Kit has just remade, and update {edition}/carousel/check.md: write the line "Both carousels PASSED, <date> <time>" on its own line only when every slide of both carousels passes.'}};
 export function fixMessage({run, step, bot, reasons}) {
   const intro = bot === step.bot ? `your ${step.id} step did not pass the automatic check` : `${step.bot}'s ${step.id} step did not pass the automatic check, and it needs your part fixed first`;
+  if (isWow(run)) { const note = step.fixNote?.[bot] ? ' ' + fill(step.fixNote[bot], wowVars(run)) : '';
+    return `WOW run for ${run.business} (version ${run.version}): ${intro}.${note} Fix exactly these, change nothing else, and run your checks again. This message is Tavin's go. Don't ask questions.\n${reasons.slice(0, 12).map(r => '- ' + r).join('\n')}\nThe run's status is in pipeline/wow-${run.business}/status.md.`; }
   if (isBook(run)) { const note = step.fixNote?.[bot] ? ' ' + fill(step.fixNote[bot], runVars(run)) : '';
     return `Book run for ebooks/${run.base}: ${intro}.${note} Fix exactly these, change nothing else, and run your checks again.${note ? '' : ' This message is Tavin\'s go.'} Don't ask questions.\n${reasons.slice(0, 12).map(r => '- ' + r).join('\n')}\nThe run's status is in pipeline/book-${run.base}/status.md.`; }
   const pnote = step.fixNote?.[bot] || PACKAGE_FIX_NOTES[step.id]?.[bot]; const pn = pnote ? ' ' + fill(pnote, runVars(run)) : '';
@@ -143,8 +149,8 @@ export class Pipelines {
   constructor({directory, teamRoot, teamFolder, service, busy, checkApp, now = Date.now, onChange = () => {}, features = {}}) {
     Object.assign(this, {directory, teamRoot, teamFolder, service, busy, checkApp, now, onChange});
     // Max: Max's creator automations can be switched off in edition.json "features" (all on when not given, as in Max).
-    this.features = {creatorLog: true, creatorsSafetyNet: true, autoPick: true, ...features};
-    this.runs = []; this.auto = {}; this.archive = {}; this.ticking = false; this.closed = false; this.persist = Promise.resolve();
+    this.features = {creatorLog: true, creatorsSafetyNet: true, autoPick: true, wowDaily: false, ...features};
+    this.runs = []; this.auto = {}; this.archive = {}; this.daily = {}; this.ticking = false; this.closed = false; this.persist = Promise.resolve();
     // Build 38: the creator progress log (creators/creators-log.csv and .html). Never allowed to break a run.
     this.log = new CreatorLog({teamRoot, teamFolder, now});
     this.workdays = new ExtraWorkdays(teamRoot, now);
@@ -152,16 +158,16 @@ export class Pipelines {
   logged(promise) { return Promise.resolve(promise).catch(() => {}); }
   file() { return join(this.directory, 'pipelines.json'); }
   async init() {
-    try { const data = JSON.parse(await readFile(this.file(), 'utf8')); if (Array.isArray(data.runs)) this.runs = data.runs; if (data.auto && typeof data.auto === 'object') this.auto = data.auto; if (data.archive && typeof data.archive === 'object') this.archive = data.archive; } catch (e) { if (e.code !== 'ENOENT') throw new Error('Could not read saved package runs.'); }
+    try { const data = JSON.parse(await readFile(this.file(), 'utf8')); if (Array.isArray(data.runs)) this.runs = data.runs; if (data.auto && typeof data.auto === 'object') this.auto = data.auto; if (data.archive && typeof data.archive === 'object') this.archive = data.archive; if (data.daily && typeof data.daily === 'object') this.daily = data.daily; } catch (e) { if (e.code !== 'ENOENT') throw new Error('Could not read saved package runs.'); }
     return this;
   }
   async save() {
-    const body = JSON.stringify({version: 1, runs: this.runs.slice(-50), auto: this.auto, archive: this.archive}, null, 1);
+    const body = JSON.stringify({version: 1, runs: this.runs.slice(-50), auto: this.auto, archive: this.archive, daily: this.daily}, null, 1);
     const write = async () => { await mkdir(this.directory, {recursive: true}); const tmp = this.file() + '.' + randomUUID(); await writeFile(tmp, body); await rename(tmp, this.file()); };
     this.persist = this.persist.then(write, write); await this.persist; this.onChange();
   }
   async steps(kind = 'package') {
-    const name = kind === 'book' ? 'book-steps.json' : 'steps.json', standard = kind === 'book' ? BOOK_STEPS : DEFAULT_STEPS, path = join(this.teamRoot, 'pipeline', name);
+    const name = kind === 'wow' ? 'wow-steps.json' : kind === 'book' ? 'book-steps.json' : 'steps.json', standard = kind === 'wow' ? WOW_STEPS : kind === 'book' ? BOOK_STEPS : DEFAULT_STEPS, path = join(this.teamRoot, 'pipeline', name);
     try { const data = JSON.parse(await readFile(path, 'utf8'));
       // Build 44: an older saved copy of the standard book steps is replaced by the new standard (kept as a backup).
       if (kind === 'book' && Number(data.version || 1) < standard.version) { await this.teamFolder.write(null, `pipeline/book-steps.v${Number(data.version || 1)}.json`, JSON.stringify(data, null, 1)); }
@@ -170,9 +176,10 @@ export class Pipelines {
     return standard.steps;
   }
   stepsFor(run, all) { return all.filter(s => !s.contact || s.contact === run.contact); }
-  async runSteps(run) { return this.stepsFor(run, await this.steps(isBook(run) ? 'book' : 'package')); }
-  vars(run) { return runVars(run); }
-  find(handle) { handle = String(handle || '').replace(/^@/, '').trim().toLowerCase(); return [...this.runs].reverse().find(r => !isBook(r) && r.handle.toLowerCase() === handle); }
+  async runSteps(run) { return this.stepsFor(run, await this.steps(isWow(run) ? 'wow' : isBook(run) ? 'book' : 'package')); }
+  vars(run) { return isWow(run) ? wowVars(run) : runVars(run); }
+  find(handle) { handle = String(handle || '').replace(/^@/, '').trim().toLowerCase(); return [...this.runs].reverse().find(r => !isBook(r) && !isWow(r) && String(r.handle || '').toLowerCase() === handle); }
+  findWow(business) { business = String(business || '').trim().toLowerCase(); return [...this.runs].reverse().find(r => isWow(r) && r.business === business); }
   findBook(base) { base = baseName(base).toLowerCase(); return [...this.runs].reverse().find(r => isBook(r) && r.base.toLowerCase() === base); }
   snapshot() { return structuredClone(this.runs); }
 
@@ -261,7 +268,7 @@ export class Pipelines {
     if (this.busy(c)) return false;
     const runId = randomUUID(), at = this.now();
     run.current = {bot, conversationId: c.id, runId, at, message: message.slice(0, 200)}; await this.save();
-    await this.service._deliver(c, message, [], {scheduled: {id: isBook(run) ? 'book-' + run.base : 'package-' + run.handle, runId, title: isBook(run) ? `Book run ${run.base}: ${bot}` : `Package @${run.handle}: ${bot}`, scheduledFor: at}});
+    await this.service._deliver(c, message, [], {scheduled: {id: isWow(run) ? 'wow-' + run.business : isBook(run) ? 'book-' + run.base : 'package-' + run.handle, runId, title: isWow(run) ? `WOW run ${run.business}: ${bot}` : isBook(run) ? `Book run ${run.base}: ${bot}` : `Package @${run.handle}: ${bot}`, scheduledFor: at}});
     return true;
   }
   // The bot's reply to the step message: 'waiting', 'done' or 'failed'.
@@ -292,8 +299,24 @@ export class Pipelines {
         if (t < fresh && g.fresh !== false) { reasons.push(`${p} was not updated in this run.`); continue; }
         const text = await read(p);
         for (const c0 of g.lacks || []) { const c = fill(c0, v); if (text.includes(c)) reasons.push(`${p} still says "${c}".`); }
+        if (g.verdict && !verdictLine(text, g.verdict)) { const own = text.match(/## (?:To fix|Word changes needed|Fixes)\n([\s\S]*?)(\n## |$)/)?.[1].trim(); reasons.push(`${p} does not say "${g.verdict}" on its own line.${own ? ' Its own list: ' + own.replace(/\s+/g, ' ').slice(0, 500) : ''}`); }
+        if (g.line && !new RegExp(g.line, 'm').test(text)) reasons.push(`${p} does not pass (${text.split('\n')[0].slice(0, 120)}).${(text.match(/## To fix\n([\s\S]*?)(\n## |$)/)?.[1] || '').replace(/\s+/g, ' ').slice(0, 400)}`);
         for (const c0 of g.contains || []) { const c = fill(c0, v); if (VERDICTS.includes(c) ? hasVerdict(text, c) : text.includes(c)) continue; const fix = text.match(/## To fix\n([\s\S]*?)(\n## |$)/)?.[1].trim(); const fails = fix ? [] : text.split('\n').filter(l => /\|\s*FAIL\s*\|/.test(l)).slice(0, 6).map(l => l.replace(/\s+/g, ' ').trim().slice(0, 160));
           reasons.push(`${p} does not say "${c}".${fix ? ' Its own list: ' + fix.replace(/\s+/g, ' ').slice(0, 400) : ''}${fails.length ? ' Its FAIL rows: ' + fails.join(' ; ') : ''}`); }
+      }
+      if (g.choices) {
+        const p = `clients/${v.business}/wow/choices.json`, text = await read(p);
+        if (text) { reasons.push(...choicesProblems(text, v.business).map(r => 'Ad Writer: ' + r)); for (const ph of choicesPhotos(text)) if (!(await mtime(ph))) reasons.push(`Ad Writer: the photo ${ph} named in choices.json is not in the team folder.`); }
+      }
+      if (g.made) {
+        const files = choicesFiles(await read(`clients/${v.business}/wow/choices.json`), v.business);
+        if (!files.length) reasons.push(`clients/${v.business}/wow/choices.json names no ads to make.`);
+        for (const f of files) { const t = await mtime(f); if (!t) reasons.push(`${f} was not made.`); else if (t < fresh) reasons.push(`${f} is older than this step.`); }
+      }
+      if (g.email) {
+        const p = `outreach/${v.business}-emails.md`, t = await mtime(p);
+        if (!t) reasons.push(`${p} was not written.`); else if (t < fresh) reasons.push(`${p} was not updated in this run.`);
+        else reasons.push(...emailProblems(await read(p), {business: v.business, version: run.version}));
       }
       if (g.captionsDone) {
         const open = openCaptionChanges(await read(`ebooks/${v.base}/pictures.md`));
@@ -340,14 +363,14 @@ export class Pipelines {
 
   async tick() {
     if (this.ticking || this.closed) return; this.ticking = true;
-    try { if (this.features.creatorLog) await this.logged(this.log.tick()); if (this.features.creatorsSafetyNet) await this.logged(this.watchCreators()); if (this.features.autoPick) await this.logged(this.autoPick()); await this.logged(this.archiveDecisions());
+    try { if (this.features.creatorLog) await this.logged(this.log.tick()); if (this.features.creatorsSafetyNet) await this.logged(this.watchCreators()); if (this.features.autoPick) await this.logged(this.autoPick()); if (this.features.wowDaily) await this.logged(this.wowDaily()); await this.logged(this.archiveDecisions());
       for (const run of this.runs.filter(r => r.status === 'running')) await this.advance(run).catch(async e => { await this.fail(run, (isBook(run) ? 'The book run' : 'The package run') + ' hit an error: ' + e.message); }); }
     finally { this.ticking = false; }
   }
   async advance(run) {
     const all = await this.runSteps(run), step = all[run.step];
     if (!step) return this.fail(run, 'The steps list ended without a review step.');
-    if (step.review) return isBook(run) ? this.bookReady(run) : this.toReview(run, all);
+    if (step.review) return isWow(run) ? this.wowReady(run) : isBook(run) ? this.bookReady(run) : this.toReview(run, all);
     if (!run.current && !run.queue.length && step.when?.openCaptionChanges) {
       const open = openCaptionChanges(await readFile(join(this.teamRoot, fill('ebooks/{base}/pictures.md', this.vars(run))), 'utf8').catch(() => ''));
       if (!open.length) { run.history.push({step: step.id, skipped: true, at: this.now()}); run.step++; run.attempt = 0; await this.save(); await this.writeStatus(run, `Step "${step.id}" not needed (no open caption changes).`); return this.advance(run); }
@@ -371,7 +394,7 @@ export class Pipelines {
       run.step++; run.attempt = 0; run.queue = []; run.messages = []; await this.save();
       await this.runLine(`${runLabel(run)} step "${step.id}" (${step.bot}) passed the automatic check`);
       await this.writeStatus(run, `Step "${step.id}" passed.`);
-      if (isBook(run)) return;
+      if (isBook(run) || isWow(run)) return;
       const next = all[run.step], link = step.id === 'app' ? await readFile(join(this.teamRoot, fill('{edition}/app/app-link.md', this.vars(run))), 'utf8').then(t => t.match(/https:\/\/\S+/)?.[0] || '', () => '') : '';
       await this.logged(this.log.stepPassed(run, step.id, next && !next.review ? `${next.bot}: ${next.task}` : '', link));
       return;
@@ -386,12 +409,12 @@ export class Pipelines {
     const bots = step.retry || [step.bot];
     run.queue = [...bots]; run.messages = bots.map(bot => fixMessage({run, step, bot, reasons})); run.stepStartedAt = this.now();
     await this.save(); await this.writeStatus(run, `Step "${step.id}" did not pass; ${fixes === 1 ? 'one fix run' : `fix run ${run.attempt} of ${fixes}`} started (${bots.join(', then ')}).`);
-    await this.runLine(`${runLabel(run)} step "${step.id}" did not pass; fix run started`, reasons.slice(0, 3).join(' / '));
+    await this.runLine(`${runLabel(run)} step "${step.id}" did not pass; fix run started (${run.attempt} of ${fixes}: ${bots.join(', then ')})`, reasons.slice(0, 3).join(' / '));
   }
   async fail(run, reason) {
     run.status = 'stopped'; run.reason = reason; run.finishedAt = this.now(); run.queue = []; delete run.current;
-    await this.save(); await this.writeStatus(run, reason); if (!isBook(run)) await this.logged(this.log.stopped(run, reason));
-    await this.runLine(isBook(run) ? `book run ebooks/${run.base} stopped; needs a look` : `@${run.handle} package run stopped; needs a look`, reason.split('\n').slice(0, 3).join(' '));
+    await this.save(); await this.writeStatus(run, reason); if (!isBook(run) && !isWow(run)) await this.logged(this.log.stopped(run, reason));
+    await this.runLine(isWow(run) ? `WOW run ${run.business} stopped; needs a look` : isBook(run) ? `book run ebooks/${run.base} stopped; needs a look` : `@${run.handle} package run stopped; needs a look`, reason.split('\n').slice(0, 3).join(' '));
   }
   async toReview(run, all) {
     await this.writeReview(run);
@@ -525,6 +548,7 @@ export class Pipelines {
     await this.teamFolder.append(`board/runs-${localDate(t)}.md`, `${localTime(t)} | Package runs | done: ${done} | cost: $0.00 | problems: ${String(problems).replace(/\n/g, ' ').slice(0, 400)}\n`).catch(() => {});
   }
   async writeStatus(run, line) {
+    if (isWow(run)) return this.writeWowStatus(run, line);
     if (isBook(run)) return this.writeBookStatus(run, line);
     const t = this.now(), all = this.stepsFor(run, await this.steps());
     const steps = all.map((s, i) => `| ${i + 1} | ${s.review ? 'Tavin reviews' : s.bot} | ${s.id} | ${i < run.step ? 'passed' : i === run.step ? (run.status === 'running' ? (run.attempt ? 'fix run' : 'working') : run.status) : 'waiting'} |`).join('\n');
@@ -541,8 +565,10 @@ export class Pipelines {
     await this.writeAllStatus(t);
   }
   async writeAllStatus(t) {
-    const pkgSteps = await this.steps(), bookSteps = this.runs.some(isBook) ? await this.steps('book') : [];
-    const lines = this.runs.slice(-20).reverse().map(r => isBook(r)
+    const pkgSteps = this.runs.some(r => !isBook(r) && !isWow(r)) ? await this.steps() : [], bookSteps = this.runs.some(isBook) ? await this.steps('book') : [], wowSteps = this.runs.some(isWow) ? await this.steps('wow') : [];
+    const lines = this.runs.slice(-20).reverse().map(r => isWow(r)
+      ? `| WOW: ${r.business} (version ${r.version}) | ${r.lead || ''} | ${r.status} | ${r.status === 'running' ? (wowSteps[r.step]?.id || '') : ''} | pipeline/wow-${r.business}/status.md |`
+      : isBook(r)
       ? `| book: ${r.base}${r.handle ? ` (for @${r.handle})` : ''} | ${r.base} | ${r.status} | ${r.status === 'running' ? (bookSteps[r.step]?.id || '') : ''} | pipeline/book-${r.base}/status.md |`
       : `| @${r.handle} | ${r.base} | ${r.status} | ${r.status === 'running' ? (this.stepsFor(r, pkgSteps)[r.step]?.id || '') : ''} | pipeline/${r.handle}/status.md |`).join('\n');
     await this.teamFolder.write(null, 'pipeline/status.md', `# Package runs\n\nUpdated ${localDate(t)} ${localTime(t)}.\n\n| Creator | Base book | Status | Step now | Details |\n|---|---|---|---|---|\n${lines}\n\n## For Max\n${this.runs.some(r => r.status === 'review') ? 'Packages are waiting for Tavin\'s review (status "review").' : ''}${this.runs.some(r => r.status === 'stopped' && this.now() - (r.finishedAt || 0) < 86400000) ? ' A run stopped in the last day: see its status file.' : ''}${this.runs.some(r => isBook(r) && r.status === 'running') ? ' A book run is going: see its status file.' : ''}\n`);
@@ -573,6 +599,142 @@ ${looks.length ? `<div class="card look"><b>Worth a look (not blocking):</b><br>
 <h2>${run.contact === 'dm' ? 'DM' : 'Email'} draft</h2><div class="card"><pre>${escapeHtml(draft.trim() || 'No draft found.')}</pre></div>
 </main></body></html>`;
     await this.teamFolder.write(null, `pipeline/${run.handle}/review.html`, html);
+  }
+  // ---- Build 21: Max's WOW runs and the daily run (src/wow-run.mjs) ----
+  async startWow({business, name = '', version, lead = '', notes = '', by = '', from = ''}) {
+    business = String(business || '').trim().toLowerCase(); version = String(version || '').trim().toUpperCase();
+    if (!validBusiness(business)) throw new Error('Give the business folder name, small letters and dashes, for example "mccance-plumbing".');
+    if (!['A', 'B'].includes(version)) throw new Error('Give the email version: "A" (page link) or "B" (no link).');
+    const open = this.findWow(business); if (open && ['running', 'review'].includes(open.status)) throw new Error(`${business} already has a WOW run (${open.status}). Use wow_status, or stop_wow_run first.`);
+    const other = this.runs.find(r => isWow(r) && r.status === 'running'); if (other) throw new Error(`The WOW run for ${other.business} is still going. One business at a time, so no bot mixes two up: start this one when it has finished.`);
+    const steps = await this.steps('wow'), list = steps.filter(x => !x.review);
+    for (const b of new Set(list.map(x => x.bot))) if (!this.botConversation(b)) throw new Error(`No chat found for the bot "${b}". Open that bot once in Max, then try again.`);
+    let step = 0; if (from) { step = steps.findIndex(x => x.id === from); if (step < 0) throw new Error(`No step "${from}". Steps: ${list.map(x => x.id).join(', ')}.`); }
+    const when = this.now(), decisions = `board/decisions-${localDate(when).slice(0, 7)}.md`;
+    let text = ''; try { text = await readFile(join(this.teamRoot, decisions), 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+    const n = nextInstruction(text + '\n' + await this.archived(decisions)), bots = list.slice(step).map(x => x.bot);
+    name = oneLine(name) || business;
+    const who = by === 'auto' ? `picked by the Max app's daily run under Tavin's standing rule (decisions 104 to 109), ${localTime(when)}` : `Tavin, through Max, ${localTime(when)}`;
+    await this.teamFolder.append(decisions, (text && !text.endsWith('\n') ? '\n' : '') + `${localDate(when)} I${n} | for: ${[...new Set(bots)].join(', ')} | instruction: WOW RUN for ${name} (${business}), version ${version}${lead ? `, lead from ${lead}` : ''}${step ? `, from step "${steps[step].id}"` : ''} (${who}). Max's app messages each of you in order ("WOW run for ${business} ..."); do your step when that message comes, and the app checks your files. Drafts only: Tavin publishes the page and sends.${notes ? ' Note: ' + oneLine(notes).slice(0, 300) : ''} | status: decided | ${localTime(when)}\n`);
+    const run = {id: randomUUID(), kind: 'wow', business, name, version, lead, notes, decision: n, status: 'running', startedAt: when, step, attempt: 0, queue: [], history: [], ...(by ? {by} : {})};
+    this.runs.push(run); await this.save();
+    await this.writeStatus(run, by === 'auto' ? `Picked by the daily run (decided line I${n}).` : `Started by Tavin through Max (decided line I${n}).`);
+    await this.runLine(`WOW run ${business} started (version ${version}${step ? `, from step "${steps[step].id}"` : ''}; I${n})`);
+    return structuredClone(run);
+  }
+  async stopWow(business, reason = 'Stopped by Tavin.') {
+    const run = this.findWow(String(business || '').trim().toLowerCase()); if (!run || !['running', 'review'].includes(run.status)) throw new Error(`No open WOW run for ${business}.`);
+    run.status = 'stopped'; run.reason = reason; run.finishedAt = this.now(); run.queue = []; delete run.current;
+    await this.save(); await this.writeStatus(run, reason); await this.runLine(`WOW run ${run.business} stopped by Tavin`); return structuredClone(run);
+  }
+  async writeWowStatus(run, line) {
+    const t = this.now(), all = await this.runSteps(run);
+    const steps = all.map((x, i) => `| ${i + 1} | ${x.review ? 'Tavin reviews' : x.bot} | ${x.id} | ${i < run.step ? (run.history.some(h => h.step === x.id && h.passed) ? 'passed' : 'not run') : i === run.step ? (run.status === 'running' ? (run.attempt ? `fix run ${run.attempt}` : 'working') : run.status) : 'waiting'} |`).join('\n');
+    const forMax = run.status === 'review' ? `Ready: tell Tavin to open pipeline/wow-${run.business}/review.html (or today's pipeline/ready-<date>.html). He publishes the page (version A) and sends.` : run.status === 'stopped' ? 'The run stopped: tell Tavin why (above), with one plain fix.' : 'nothing';
+    await this.teamFolder.write(null, `pipeline/wow-${run.business}/status.md`, `# WOW run: ${run.name} (${run.business})\n\n- Version: ${run.version}\n- Lead: ${run.lead || 'not given'}\n- Decided line: I${run.decision}${run.by === 'auto' ? ' (daily run)' : ''}\n- Status: ${run.status}\n- Updated: ${localDate(t)} ${localTime(t)}\n- Latest: ${line}\n\n| # | Who | Step | State |\n|---|---|---|---|\n${steps}\n${run.reason ? `\n## Why it stopped\n${run.reason}\n` : ''}\n## For Max\n${forMax}\n`);
+    await this.writeAllStatus(t);
+  }
+  async wowSection(run, rel) {
+    const root = this.teamRoot, b = run.business, read = async p => { try { return await readFile(join(root, p), 'utf8'); } catch { return ''; } };
+    const pics = async dir => { try { return (await readdir(join(root, dir))).filter(n => /\.(png|jpe?g|webp)$/i.test(n)).sort().map(n => `${dir}/${n}`); } catch { return []; } };
+    const current = [...await pics(`clients/${b}/current-ads`), ...await pics(`leads/ads/${b}`)].slice(0, 3);
+    const ads = [];
+    for (const f of choicesFiles(await read(`clients/${b}/wow/choices.json`), b)) { try { await stat(join(root, f)); ads.push(f); } catch {} }
+    const forMax = [];
+    for (const p of [`clients/${b}/reviews.md`, `clients/${b}/facts.md`, `clients/${b}/wow/made.md`, `pages/${b}/wow/page-notes.md`, `outreach/${b}-emails.md`]) {
+      const sec = (await read(p)).match(/^## For Max\s*\n([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1].trim(); if (sec) forMax.push(`${p.split('/').slice(-1)[0]}: ${sec.replace(/\s+/g, ' ').slice(0, 400)}`);
+    }
+    return reviewSection({run, current, ads, email: await read(`outreach/${b}-emails.md`), forMax, rel});
+  }
+  async wowReady(run) {
+    run.status = 'review'; run.readyAt = this.now(); await this.save();
+    await this.teamFolder.write(null, `pipeline/wow-${run.business}/review.html`, readyPage({date: localDate(run.readyAt), summary: `${run.name}: every step passed its automatic check.`, sections: [await this.wowSection(run, p => '../../' + p)]}));
+    await this.writeStatus(run, `Ready for Tavin: pipeline/wow-${run.business}/review.html.`);
+    await this.runLine(`WOW run ${run.business} READY for Tavin's review (pipeline/wow-${run.business}/review.html)`);
+  }
+  async dailySettings() {
+    const path = 'pipeline/daily.json';
+    try { return {...DAILY, ...JSON.parse(await readFile(join(this.teamRoot, path), 'utf8'))}; }
+    catch (e) { if (e.code !== 'ENOENT') return {...DAILY, enabled: false, broken: true}; }
+    await this.teamFolder.write(null, path, JSON.stringify(DAILY, null, 1)); return {...DAILY};
+  }
+  async spendThisMonth(t) {
+    const month = localDate(t).slice(0, 7), texts = [];
+    try { for (const n of (await readdir(join(this.teamRoot, 'board'))).filter(n => n.startsWith(`runs-${month}`) && n.endsWith('.md'))) texts.push(await readFile(join(this.teamRoot, 'board', n), 'utf8')); } catch {}
+    return monthSpend(texts);
+  }
+  // The daily run: each workday from 13:00, Lead Finder, the pick, one WOW run at a time, then the ready page and a line to Max.
+  async wowDaily() {
+    const t = this.now(); if (this.lastDaily && t - this.lastDaily < 60000) return; this.lastDaily = t;
+    const s = await this.dailySettings(); if (!s.enabled) return;
+    const date = localDate(t), dt = new Date(t), hm = dt.getHours() * 60 + dt.getMinutes(), leadsPath = `leads/leads-${date}.md`;
+    if (!isWorkday(t, await this.workdays.get()) || hm < minutes(s.start)) return;
+    const read = async p => { try { return await readFile(join(this.teamRoot, p), 'utf8'); } catch { return ''; } };
+    const idle = c => c && !this.busy(c) && !c.messages.some(m => m.status === 'streaming');
+    let d = this.daily;
+    if (d.date !== date) {
+      d = this.daily = {date, phase: 'ask', queue: [], skipped: [], notes: []};
+      const spend = await this.spendThisMonth(t);
+      if (spend + s.reserveLeads > s.monthlyLimit) { d.phase = 'finish'; d.notes.push(`Nothing ran today: Max has spent $${spend.toFixed(2)} of his $${s.monthlyLimit} this month (decision 105).`); }
+      else if (leadsDone(await read(leadsPath))) d.phase = 'pick';
+      await this.save();
+    }
+    if (d.phase === 'ask') {
+      const c = this.botConversation('Lead Finder');
+      if (!c) { d.phase = 'finish'; d.notes.push('No chat found for Lead Finder.'); await this.save(); }
+      else if (idle(c)) { await this.service._deliver(c, leadMessage({date, count: s.count}), [], {scheduled: {id: 'daily-leads', runId: randomUUID(), title: 'Daily run: today\'s leads', scheduledFor: t}}); d.phase = 'lead'; d.askedAt = t; await this.save(); await this.runLine(`daily run: asked Lead Finder for ${leadsPath}`); return; }
+      else return;
+    }
+    if (d.phase === 'lead') {
+      if (leadsDone(await read(leadsPath))) { d.phase = 'pick'; await this.save(); }
+      else {
+        const c = this.botConversation('Lead Finder');
+        if (hm >= minutes(s.latestPick)) { d.phase = 'finish'; d.notes.push(`Lead Finder had not finished ${leadsPath} (no "Status: done") by ${s.latestPick}.`); await this.save(); }
+        else if (!d.second && idle(c) && t - d.askedAt > s.leadWaitMinutes * 60000) { await this.service._deliver(c, leadSecondMessage({date}), [], {scheduled: {id: 'daily-leads-2', runId: randomUUID(), title: 'Daily run: second try for leads', scheduledFor: t}}); d.second = t; await this.save(); await this.runLine(`daily run: ${leadsPath} not done after ${s.leadWaitMinutes} minutes; asked Lead Finder once more`); return; }
+        else return;
+      }
+    }
+    if (d.phase === 'pick') {
+      let clients = []; try { clients = (await readdir(join(this.teamRoot, 'clients'), {withFileTypes: true})).filter(e => e.isDirectory()).map(e => e.name); } catch {}
+      const busy = this.runs.filter(r => isWow(r) && r.status !== 'stopped').map(r => r.business);
+      const {picks, skipped} = chooseLeads({leads: topLeads(await read(leadsPath)), doNotContact: await read('outreach/do-not-contact.md'), clients, busy, count: s.count, countries: s.countries});
+      let ab = await read('outreach/ab-test.md'); if (!ab.trim()) { await this.teamFolder.write(null, 'outreach/ab-test.md', AB_HEADER); ab = AB_HEADER; }
+      for (const l of picks) { const version = nextVersion(ab), row = `| ${date} | ${l.folder} | ${version} | no | no |\n`; ab += row; await this.teamFolder.append('outreach/ab-test.md', row); d.queue.push({business: l.folder, name: l.name, version, email: l.email}); }
+      d.skipped = skipped.map(x => ({business: x.folder || x.name, why: x.why}));
+      if (!picks.length) d.notes.push(`No lead in ${leadsPath} could be picked today.`);
+      d.phase = 'run'; await this.save();
+      await this.teamFolder.write(null, `pipeline/daily-${date}.md`, `# Daily run, ${date}\n\n- Leads: ${leadsPath}\n- Picked (decision 108): ${d.queue.map(q => `${q.business} (version ${q.version})`).join(', ') || 'nobody'}\n${d.skipped.map(x => `- Skipped ${x.business}: ${x.why}`).join('\n')}\n`);
+      await this.runLine(`daily run: picked ${d.queue.map(q => `${q.business} (${q.version})`).join(', ') || 'nobody'} from ${leadsPath}`, d.skipped.length ? d.skipped.map(x => `${x.business}: ${x.why}`).join(' / ') : 'none');
+    }
+    if (d.phase === 'run') {
+      if (this.runs.some(r => isWow(r) && r.status === 'running')) return;
+      const next = d.queue.find(q => !q.started);
+      if (next) {
+        next.started = true;
+        const spend = await this.spendThisMonth(t);
+        if (spend + s.reserveBusiness > s.monthlyLimit) { for (const q of d.queue.filter(q => !q.run)) { q.started = true; q.error = `not started: $${spend.toFixed(2)} of the $${s.monthlyLimit} monthly limit spent (decision 105)`; } }
+        else { try { const r = await this.startWow({business: next.business, name: next.name, version: next.version, lead: leadsPath, by: 'auto'}); next.run = r.id; } catch (e) { next.error = e.message; } }
+        await this.save(); return;
+      }
+      d.phase = 'finish'; await this.save();
+    }
+    if (d.phase === 'finish') {
+      const runs = d.queue.map(q => ({q, run: this.runs.find(r => r.id === q.run)}));
+      const ready = runs.filter(x => x.run?.status === 'review'), stopped = runs.filter(x => !x.run || x.run.status !== 'review');
+      const spend = await this.spendThisMonth(t);
+      const summary = `${ready.length} of ${d.queue.length} ready: ${ready.map(x => x.q.business).join(', ') || 'none'}.${stopped.length ? ' Not ready: ' + stopped.map(x => `${x.q.business} (${x.q.error || x.run?.reason?.split('\n')[0] || x.run?.status})`).join('; ') + '.' : ''}${d.notes.length ? ' ' + d.notes.join(' ') : ''} Max's spend this month: $${spend.toFixed(2)} of $${s.monthlyLimit}.`;
+      const sections = []; for (const x of runs) if (x.run) sections.push(await this.wowSection(x.run, p => '../' + p));
+      await this.teamFolder.write(null, `pipeline/ready-${date}.html`, readyPage({date, summary, sections}));
+      await this.teamFolder.write(null, `pipeline/ready-${date}.md`, `# Ready for Tavin, ${date}\n\n${summary}\n\n${d.skipped.map(x => `- Skipped lead ${x.business}: ${x.why}`).join('\n')}\n\nPage with every set side by side: pipeline/ready-${date}.html\n`);
+      await this.runLine(`daily run done: ${summary}`);
+      d.phase = 'tell'; await this.save();
+    }
+    if (d.phase === 'tell') {
+      const max = this.botConversation('Max'); if (!max) { d.phase = 'done'; await this.save(); return; }
+      if (!idle(max)) return;
+      await this.service._deliver(max, `The daily run for ${date} is done (from the Max app). Read pipeline/ready-${date}.md and tell Tavin in at most 4 lines: what is ready for him (open pipeline/ready-${date}.html), what stopped and the one plain fix, and the spend. Nothing is published or sent. Don't start anything.`, [], {scheduled: {id: 'daily-ready', runId: randomUUID(), title: 'Daily run: ready for Tavin', scheduledFor: t}});
+      d.phase = 'done'; await this.save();
+    }
   }
   startTimer() { this.timer = setInterval(() => void this.tick().catch(() => {}), 5000); this.timer.unref?.(); }
   async close() { this.closed = true; clearInterval(this.timer); await this.persist; }

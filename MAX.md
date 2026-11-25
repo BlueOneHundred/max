@@ -118,8 +118,15 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 - split-claim: the name line stays on one line (no wrap, 18 to 12 px, letter spacing 1.5 px); Ad Maker caught it wrapping "OKOTOKS".
 - Check notes no longer name a build ("Max build 14" confused Ad Maker). Test: 1 new; full suite 473 pass, 1 skipped.
 
+## Max build 21 (26 Nov 2026): Max runs himself
+- **WOW runs** (`src/wow-run.mjs`, run kind `wow` in `src/pipeline.mjs`): one business goes Review Miner, Fact Finder, Ad Writer, Rule Checker, Ad Maker, Page Builder, Outreach Writer, the app messaging each bot ("WOW run for <business> ..., step n of 7") and checking its files: reviews.md; facts.md "## Phone numbers" and brand.md; choices.json as make_wow_ad input (5 ads + 1 preview, wow-1 a photo ad, WOW word rules, photos present); rule-check.md and made.md "Result: PASSED" on its own line, every ad picture made; page-check.md "# WOW page for ...: PASSED"; the email (Version line, Dan, dan@blueonehundred.com, links by version, no dashes, email 1 at most 95 words). At most 2 fix runs a step; a failed rule check goes to Ad Writer then Rule Checker, a failed Ad Maker to Ad Writer, Rule Checker, Ad Maker. Steps in `pipeline/wow-steps.json` (team folder). Ends at `pipeline/wow-<business>/review.html`. One WOW run at a time.
+- **The daily run** (`wowDaily`, feature `wowDaily` in edition.json, settings `pipeline/daily.json`, off until Tavin turns it on): each workday from 13:00 on the computer's clock, asks Lead Finder for `leads/leads-<date>.md` (once more after 60 minutes), waits for "Status: done", picks the Top 3 by "- Folder:" and "- Country:" (skips: no own email, do-not-contact, already in clients/, outside US/CA/UK/AU/NZ), writes `outreach/ab-test.md` rows (A, B in turn), runs them one at a time, then writes `pipeline/ready-<date>.html` (every set side by side) and `.md` and tells Max. Money guard: Max's month spend from his run lines; the day stops before it could pass $10.
+- Tools for the bot named Max: `start_wow_run` (optional `from` step), `stop_wow_run`, `wow_status`.
+- `scripts/pack-preview/wow-electron.cjs`: the real make_wow_ad in real Electron with the app's own photo shrink (matches the app; solved the session 11 wow-3 crop puzzle: no app bug).
+- Tests: `test/max-build21.test.mjs` (made-up businesses only).
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
 ## Tests
-`npm test` (436 pass, 1 skipped at Max build 1; 449 pass, 1 skipped at Max build 2), `npm run test:team`, `npm run verify:public`.
+`npm test` (436 pass, 1 skipped at Max build 1; 449 pass, 1 skipped at Max build 2; 482 pass at Max build 21), `npm run test:team`, `npm run verify:public`.

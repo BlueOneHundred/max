@@ -6,6 +6,7 @@
   "features": {
     "creatorLog": false,
     "creatorsSafetyNet": false,
-    "autoPick": false
+    "autoPick": false,
+    "wowDaily": true
   }
 }
