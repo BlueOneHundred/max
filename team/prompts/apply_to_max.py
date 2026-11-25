@@ -26,6 +26,8 @@ TEAM = [
     # Session 7 (24 Nov 2026): Review Miner (decision 59), after Fact Finder.
     {'name': 'Review Miner', 'file': 'review-miner.txt', 'shape': 'sparkle', 'color': 'magenta', 'hex': '#5A3F7A', 'caps': TREG},
     {'name': 'Ad Writer', 'file': 'ad-writer.txt', 'shape': 'heartChubby', 'color': 'magenta', 'hex': '#7A3F5E', 'caps': NO_WEB},
+    # Session 11 (25 Nov 2026, decision 93): Ad Maker makes the WOW ads with make_wow_ad (Max build 14).
+    {'name': 'Ad Maker', 'file': 'ad-maker.txt', 'shape': 'flower', 'color': 'orange', 'hex': '#6E4A2A', 'caps': NO_WEB},
     {'name': 'Page Builder', 'file': 'page-builder.txt', 'shape': 'hex', 'color': 'cyan', 'hex': '#2F6E7A', 'caps': NO_WEB},
     {'name': 'Outreach Writer', 'file': 'outreach-writer.txt', 'shape': 'star6', 'color': 'orange', 'hex': '#8A5A2E', 'caps': NO_WEB},
 ]

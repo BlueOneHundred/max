@@ -3,7 +3,7 @@ const activityAt=c=>{const times=c.messages.map(m=>m.createdAt).filter(Number.is
 // Max: bots keep a fixed team order (Max first, then the team in the order
 // below; any other bot after them, oldest first). Group chats follow the bots,
 // most recent first. Pinned items still come first.
-export const TEAM_ORDER=['Max','Lead Finder','Fact Finder','Review Miner','Ad Writer','Facebook Bot','Instagram Bot','TikTok Bot','LinkedIn Bot','X Bot','Rule Checker','Visual Check','Page Builder','Outreach Writer'];
+export const TEAM_ORDER=['Max','Lead Finder','Fact Finder','Review Miner','Ad Writer','Ad Maker','Facebook Bot','Instagram Bot','TikTok Bot','LinkedIn Bot','X Bot','Rule Checker','Visual Check','Page Builder','Outreach Writer'];
 export function teamRank(name=''){const i=TEAM_ORDER.findIndex(n=>n.toLowerCase()===String(name).trim().toLowerCase());return i<0?TEAM_ORDER.length:i;}
 const order=(a,b)=>{if(a.kind!==b.kind)return a.kind==='bot'?-1:1;if(a.kind==='bot')return teamRank(a.bot.name)-teamRank(b.bot.name)||a.createdAt-b.createdAt||a.key.localeCompare(b.key);return b.activity-a.activity||b.createdAt-a.createdAt||a.key.localeCompare(b.key);};
 // Bots and group chats share one sidebar. Hidden teammate
