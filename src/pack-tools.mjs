@@ -9,6 +9,7 @@ import {imageDataUrl} from './book-builder.mjs';
 import {imageSize} from './book-pictures.mjs';
 import {contrastProblems} from './carousel-builder.mjs';
 import {parsePageMd, pageHtml, pageWordProblems, requiredSections, pageFiles, zipStore, pageCheckNote, PAGE_PLATFORMS, PAGE_CHECK_SCRIPT, posterPath, businessName} from './pack-page.mjs';
+import {WOW_LAYOUTS, WOW_SIZE, WOW_SCRIPT, WOW_HIDE_CSS, wowPage, wowWordProblems, wowCheckNote, wowSheetHtml, wowColours, wordCount, WOW_SHOWS} from './wow-ads.mjs';
 import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, panelShape, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
 
 // Max build 7 (22 Nov 2026): JJBM's busy photos (branches, leaves, gravel) made a 15 s 1440 px video over 20 MB and the save failed.
@@ -199,6 +200,70 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       const result = toFix.length ? `FAILED (${toFix.length} to fix)` : 'PASSED', check = `${dir}/page-check.md`;
       await teamFolder.writeBytes(null, check, Buffer.from(pageCheckNote({business, result, files, zips, toFix, notes, bytes})));
       return text({passed: !toFix.length, page: `${dir}/index.html`, previews, zips: zips.map(z => `${dir}/${z.file}`), files: files.length, toFix, notes, check, note: toFix.length ? 'Not passed. Fix page.md (or ask the bot that owns a missing file) and run make_pack_page again.' : 'Passed. Look at every preview picture (previews) with zoom_team_image, top to bottom, before you finish.'});
+    });
+
+  // Max build 14 (25 Nov 2026): the WOW ads (decisions 82 to 87). One 1080 x 1080 picture per ad in one of the 5 approved
+  // layouts, or the "with your team" preview (a stand-in photo with its band; page only). Each ad is measured and checked.
+  const wowAd = z.object({
+    name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,40}$/).describe('File name, e.g. "wow-1-no-heat"'),
+    layout: z.enum(WOW_LAYOUTS).describe('problem-fix, split-claim, big-review, bold-text, big-number, or preview (problem-fix with a stand-in photo and its band, page only)'),
+    kicker: z.string().max(40).optional().describe('The problem, short, e.g. "BURST PIPE?"'),
+    headline: z.string().max(80).optional().describe('7 words or fewer. \\n breaks a line; **words** are drawn in the highlight colour, e.g. "No heat at 2am?\\n**We\'re 24/7.**"'),
+    proof: z.string().max(60).optional().describe('One proof in a white pill, e.g. "**4.9 ★** from 1,218 Google reviews"'),
+    proofBig: z.string().max(14).optional().describe('split-claim: the big proof, e.g. "30 of 92"'), proofText: z.string().max(60).optional().describe('split-claim: under it, e.g. "reviews say so.*"'),
+    quote: z.string().max(140).optional().describe('big-review: the customer\'s own words exactly as written (capitals, spacing and dots may be tidied; a cut is shown with "...")'),
+    stars: z.number().int().min(1).max(5).optional().describe('big-review: the stars that review gave'), who: z.string().max(70).optional().describe('big-review: e.g. "Mike C., Google review, Nov 2026"'),
+    number: z.string().max(10).optional().describe('big-number: e.g. "1,218"'), numberLine: z.string().max(50).optional().describe('big-number: e.g. "Google reviews. **4.9 ★**"'),
+    badge: z.string().max(40).optional().describe('bold-text: e.g. "Okotoks · Since 2006"'),
+    button: z.string().min(1).max(24).describe('Their current ad\'s button words, e.g. "Learn more"'),
+    footnote: z.string().max(160).optional().describe('Small print explaining a * mark or a count, e.g. "*30 of 92 written reviews say quick, prompt or fast. Google, Yelp and website, read Nov 2026."'),
+    photo: z.string().max(300).optional().describe('Team-folder path: their own photo (clients/<business>/photos/...), or for the preview library/stand-ins/<trade>.png'),
+    focus: z.string().max(20).optional().describe('Crop position "x% y%"'), zoom: z.number().min(1).max(3).optional().describe('1 fills the space; up to 3 to crop in (for example to leave out an old phone number)'),
+    logoLine: z.string().min(1).max(60).describe('The business name line as their logo spells it, e.g. "McCANCE PLUMBING & HEATING · OKOTOKS"'),
+  });
+  register('make_wow_ad', 'Make the WOW ads (1080 x 1080 PNG): one picture per ad in an approved layout: problem-fix (photo card on top, headline, proof pill, button), split-claim (words left on a slanted dark panel, photo right, proof box), big-review (problem tag, a customer\'s own words as the headline, stars and name, photo strip), bold-text (no photo), big-number (one number huge, photo strip), or preview (problem-fix with a stand-in photo from library/stand-ins/ and the band "SAMPLE PHOTO · NOT YOUR TEAM": page only, never a download). Every text box shrinks to fit within its range; the tool then checks the WOW test (headline 7 words or fewer, 20 or fewer words on the picture), fit, overlaps, edges, contrast, fonts and photo. Writes <folder>/<name>.png (preview: <name>-PREVIEW.png), <name>-check.md and wow-sheet.jpg (all ads side by side).',
+    {folder: z.string().min(1).max(200).describe('The WOW folder, e.g. clients/mccance-plumbing/wow'), brand: brandSchema.extend({highlight: hex.optional().describe('Light colour for **words** on the dark panel; leave out to make it from the accent')}), ads: z.array(wowAd).min(1).max(6)},
+    async ({folder, brand, ads}) => {
+      folder = clean(folder);
+      const names = new Set(), toFix = [], notes = [...wowColours(brand).notes], files = [], checks = [], made = [];
+      for (const ad of ads) { if (names.has(ad.name)) toFix.push(`Two ads are named ${ad.name}.`); names.add(ad.name); }
+      if (ads.filter(a => a.layout === 'preview').length > 1) toFix.push('Only one preview per business.');
+      if (toFix.length) return text({passed: false, toFix});
+      const {images, notes: photoNotes, missing} = await loadPhotos(ads.filter(a => a.photo && WOW_SHOWS[a.layout].includes('photo')), WOW_SIZE);
+      notes.push(...photoNotes);
+      const rel = `${folder}/_work`, dir = await teamFolder.target(null, rel, true); await rm(dir, {recursive: true, force: true}); await mkdir(dir, {recursive: true});
+      for (const ad of ads) {
+        const problems = wowWordProblems(ad), extra = Object.keys(ad).filter(k => !['name', 'layout', 'logoLine', 'focus', 'zoom', ...WOW_SHOWS[ad.layout]].includes(k) && ad[k] !== undefined);
+        const adNotes = extra.length ? [`Not shown in this layout: ${extra.join(', ')}.`] : [];
+        if (ad.photo && missing.some(m => m.includes(ad.photo))) problems.push(`${ad.name}: the photo ${ad.photo} was not found in the team folder.`);
+        const file = `${folder}/${ad.name}${ad.layout === 'preview' ? '-PREVIEW' : ''}.png`;
+        let shrunk = [];
+        if (!problems.length) {
+          await teamFolder.writeBytes(null, `${rel}/${ad.name}.html`, Buffer.from(wowPage({ad, brand, images})));
+          const shot = await renderPage({file: await teamFolder.target(null, `${rel}/${ad.name}.html`), width: WOW_SIZE, height: WOW_SIZE, root: teamFolder.root(), signal, script: WOW_SCRIPT, hideCss: WOW_HIDE_CSS, quality: 95});
+          const r = shot.result || {problems: [{kind: 'script', k: 'page'}], texts: [], shrunk: []};
+          shrunk = r.shrunk || [];
+          const say = {'too long': p => `${ad.name}: the ${p.k} is too long to fit even at its smallest size ("${p.text}"). Shorten it.`, outside: p => `${ad.name}: the ${p.k} reaches the edge of the picture.`, overlap: p => `${ad.name}: ${p.k} overlap.`, font: p => `${ad.name}: the font ${p.k} did not load.`, photo: () => `${ad.name}: the photo did not load.`, script: () => `${ad.name}: the page check did not run.`};
+          for (const p of r.problems) problems.push((say[p.kind] || (x => `${ad.name}: ${x.kind} ${x.k}`))(p));
+          if (shot.background) for (const p of contrastProblems(r.texts, shot.background.bitmap, WOW_SIZE, WOW_SIZE).problems) problems.push(`${ad.name}: "${p.text}" is hard to read (contrast ${p.ratio}, needs ${p.need}). Move the focus or choose another photo.`);
+          const bytes = shot.png || shot.jpeg;
+          const out = shot.png ? file : file.replace(/\.png$/, '.jpg');
+          await teamFolder.writeBytes(null, out, bytes); files.push(out); made.push({label: `${ad.name} (${ad.layout})`, bytes});
+        }
+        const words = (WOW_SHOWS[ad.layout] || []).filter(k => !['photo', 'footnote', 'stars'].includes(k)).reduce((n, k) => n + wordCount(ad[k]), 0);
+        const check = `${folder}/${ad.name}-check.md`;
+        await teamFolder.writeBytes(null, check, Buffer.from(wowCheckNote({name: ad.name, layout: ad.layout, file, result: problems.length ? 'FAILED' : 'PASSED', problems, shrunk, notes: [...adNotes, ...notes], words})));
+        checks.push(check); toFix.push(...problems);
+      }
+      let sheet = null;
+      if (made.length) {
+        const html = wowSheetHtml(made.map(m => ({label: m.label, src: imageDataUrl(m.bytes, 'x.png')})));
+        await teamFolder.writeBytes(null, `${rel}/sheet.html`, Buffer.from(html));
+        const shot = await renderPage({file: await teamFolder.target(null, `${rel}/sheet.html`), width: made.length * 560 + 30, height: 620, root: teamFolder.root(), signal, quality: 88});
+        sheet = `${folder}/wow-sheet.jpg`; await teamFolder.writeBytes(null, sheet, shot.jpeg);
+      }
+      await rm(dir, {recursive: true, force: true});
+      return text({passed: !toFix.length, files, sheet, checks, toFix, notes, note: toFix.length ? 'Not passed. Change the words, focus or zoom named in toFix and run make_wow_ad again for those ads.' : 'Passed. Look at wow-sheet.jpg and every file with zoom_team_image before you finish.'});
     });
 
   if (renderFrames) register('make_pack_video', 'Make the carousel as a 15-second video for your platform, in the shapes its spec sheet\'s pack line lists ("carouselVideo"). Give the same cards as make_pack_carousel. House rules built in (Tavin, 21 Nov 2026): a "title" card is left out (the video opens on step 1) unless keepTitleCard is true; card 1\'s words are on screen from the first frame; the top label and business name stay fixed; cards swipe on feed shapes and dissolve on 9:16; no sound. Every card is measured at its fullest moment against the safe zone. Writes <folder>/<platform>/<name>-video-check.md.',

@@ -76,6 +76,14 @@ From test run 2 (McCance Plumbing and Heating, Okotoks, Alberta: one usable phot
 - `scripts/pack-preview/pagecheck.mjs`: the page check Claude now runs (adds a wide screen and a shape check: a picture drawn at a different shape from its file fails).
 - Proved on McCance's real pack (all 5 platforms, every ad, carousel and video: see the session log) and the page made from it. Tests: 2 new; sidebar test updated; full suite 461 pass, 1 skipped; test:team 18 pass; verify:public clean.
 
+## Max build 14 (25 Nov 2026, in progress on branch build14): the WOW ads maker
+- New tool **make_wow_ad** (src/wow-ads.mjs, registered in src/pack-tools.mjs): one 1080 x 1080 PNG per ad in the 5 approved layouts (decision 87: problem-fix, split-claim, big-review, bold-text, big-number) and the "with your team" preview (decision 86: problem-fix with a stand-in photo from library/stand-ins/ and the band "SAMPLE PHOTO · NOT YOUR TEAM"; file <name>-PREVIEW.png; page only). The look is the approved mock-ups (Desktop\Max\research\step4-wow-ads\mockup-source); every text box has a size range and shrinks to fit. Words: `\n` breaks a line, `**words**` take the highlight colour, `★` is drawn (no font needs it). Photos: `focus` and `zoom` (1 to 3) crop, for example to leave out an old phone number.
+- Checks before drawing (the WOW test, decision 82): headline (or quote) 7 words or fewer; 20 or fewer words on the picture (not counting the business name and footnote); every field the layout needs; no em or en dashes; a * mark needs a footnote; a stand-in photo only in the preview, and the preview only with a stand-in; one preview per call. Checks after drawing: a box still too long at its smallest size, anything at the edge, overlaps, fonts, photo, contrast measured behind the letters.
+- Colours from brand.md (panel, accent, soft); the highlight is the accent made lighter in the same hue until it reads on the panel (McCance: #2BCC55, near the mock-ups' #3FD16A); white on the accent and on the panel is made readable first, and any change is noted.
+- Writes <folder>/<name>.png, <name>-check.md (PASSED or FAILED, words counted, what shrank) and wow-sheet.jpg (all ads side by side). renderPage now also returns a PNG (src/pdf-maker.cjs).
+- Anton font bundled (src/book-fonts/anton-400.woff2, OFL, from @fontsource/anton; licence added to LICENSES.txt).
+- Proved in Chrome on McCance's real photo and a stand-in (scripts/pack-preview/wowtest.mjs): all 6 layouts PASSED and match the approved set; a blue brand with longer words shrinks and passes; wrong inputs are refused with reasons. Tests: test/max-wow.test.mjs (5); full suite 466 pass, 1 skipped; test:team 18 pass; verify:public clean.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

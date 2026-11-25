@@ -1,0 +1,87 @@
+// Max build 14: the WOW ads maker (make_wow_ad). Rendering needs Electron, so the tool test uses a stand-in renderPage;
+// the layouts themselves were checked in Chrome (scripts/pack-preview/wowtest.mjs) on McCance's real photo.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync} from 'node:fs';
+import {writeFile, mkdir} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join, dirname, resolve} from 'node:path';
+import {z} from 'zod';
+import * as W from '../src/wow-ads.mjs';
+import {registerPackTools} from '../src/pack-tools.mjs';
+import {contrastRatio} from '../src/pack-maker.mjs';
+
+const brand = {primary: '#0E6137', accent: '#00781F', panel: '#0A2616', soft: '#E4F2E8', name: 'MCCANCE\nPLUMBING & HEATING', place: 'OKOTOKS'};
+const base = {button: 'Learn more', logoLine: 'McCANCE PLUMBING & HEATING · OKOTOKS'};
+const good = {
+  'problem-fix': {headline: "No heat at 2am?\n**We're 24/7.**", proof: '**4.9 ★** from 1,218 Google reviews', photo: 'clients/m/photos/van.jpg'},
+  'split-claim': {kicker: 'BURST PIPE?', headline: "We're\nquick.", proofBig: '30 of 92', proofText: 'reviews say so.*', footnote: '*30 of 92 written reviews say quick.', photo: 'clients/m/photos/van.jpg'},
+  'big-review': {kicker: 'FURNACE NOT WORKING?', quote: 'Were there in a few hours... fixed!', stars: 5, who: 'Mike C., Google review, Nov 2026', photo: 'clients/m/photos/van.jpg'},
+  'bold-text': {kicker: 'NO HOT WATER?', headline: 'Tank or\ntankless,\nwe fix it.', badge: 'Okotoks · Since 2006'},
+  'big-number': {kicker: 'PICKING A PLUMBER?', number: '1,218', numberLine: 'Google reviews. **4.9 ★**', photo: 'clients/m/photos/van.jpg'},
+  preview: {headline: "No heat at 2am?\n**We're 24/7.**", proof: '**4.9 ★** from 1,218 Google reviews', photo: 'library/stand-ins/02-heating.png'},
+};
+
+test('build 14: the six approved layouts pass the word checks with McCance\'s approved words', () => {
+  for (const layout of W.WOW_LAYOUTS) assert.deepEqual(W.wowWordProblems({name: 'x', layout, ...base, ...good[layout]}), [], layout);
+});
+
+test('build 14: the WOW test and house rules are enforced before drawing', () => {
+  const p = (layout, extra) => W.wowWordProblems({name: 'x', layout, ...base, ...good[layout], ...extra}).join(' | ');
+  assert.match(p('problem-fix', {headline: 'Your heating fixed fast by our friendly local team'}), /9 words.*7 or fewer/);
+  assert.match(p('big-review', {quote: 'They came quickly and fixed our old furnace in an hour'}), /quote has 11 words/);
+  assert.match(p('bold-text', {kicker: 'NO HOT WATER — EVER?'}), /em or en dash/);
+  assert.match(p('bold-text', {badge: '30 of 92 reviews*'}), /\* mark but there is no footnote/);
+  assert.match(p('problem-fix', {photo: 'library/stand-ins/02-heating.png'}), /stand-in photo may only be used in the "preview"/);
+  assert.match(p('preview', {photo: 'clients/m/photos/van.jpg'}), /preview must use a stand-in/);
+  assert.match(p('split-claim', {proofBig: ''}), /needs "proofBig"/);
+  assert.match(p('problem-fix', {proof: 'Fast, friendly, fair and fully licensed for every heating and drain job in Okotoks and towns near it', headline: 'No heat?'}), /words on the picture.*20 or fewer/);
+});
+
+test('build 14: colours are made readable (highlight on the panel, white on the accent)', () => {
+  const C = W.wowColours(brand);
+  assert.ok(contrastRatio(C.highlight, C.panel) >= 6, C.highlight);
+  assert.ok(contrastRatio('#FFFFFF', C.accent) >= 4.5);
+  assert.ok(contrastRatio(C.panel, C.soft) >= 9);
+  const yellow = W.wowColours({accent: '#FFD400', panel: '#3A3A3A'});
+  assert.ok(contrastRatio('#FFFFFF', yellow.accent) >= 4.5 && contrastRatio('#FFFFFF', yellow.panel) >= 7);
+  assert.ok(yellow.notes.length >= 1);
+});
+
+test('build 14: the page carries the band only on the preview, and ★ and ** are drawn', () => {
+  const images = {'clients/m/photos/van.jpg': 'data:image/png;base64,AA==', 'library/stand-ins/02-heating.png': 'data:image/png;base64,AA=='};
+  const pre = W.wowPage({ad: {name: 'p', layout: 'preview', ...base, ...good.preview}, brand, images});
+  assert.ok(pre.includes(W.BAND_TEXT));
+  const one = W.wowPage({ad: {name: 'a', layout: 'problem-fix', ...base, ...good['problem-fix']}, brand, images});
+  assert.ok(!one.includes(W.BAND_TEXT));
+  assert.ok(one.includes('<em>We&#39;re 24/7.</em>') || one.includes("<em>We're 24/7.</em>"));
+  assert.ok(one.includes('<svg class="star"') && !one.includes('★'));
+  assert.ok(one.includes("font-family:'Anton'") && one.includes('font/woff2'));
+});
+
+test('build 14: make_wow_ad writes PNGs, a PREVIEW file name, check notes and a sheet; refuses two previews', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wow-'));
+  for (const f of ['clients/m/photos/van.jpg', 'library/stand-ins/02-heating.png']) { mkdirSync(dirname(join(root, f)), {recursive: true}); writeFileSync(join(root, f), Buffer.from('/9j/4AAQ', 'base64')); }
+  const teamFolder = {root: () => root, target: async (_b, p) => resolve(root, p), writeBytes: async (_b, p, bytes) => { const f = resolve(root, p); await mkdir(dirname(f), {recursive: true}); await writeFile(f, bytes); return true; }};
+  const pages = [];
+  const renderPage = async ({file, width, height, script}) => { pages.push({file, width, height}); return {jpeg: Buffer.from('jpeg'), png: Buffer.from('png'), result: script ? {problems: [], shrunk: [{k: 'headline', from: 118, to: 110}], texts: []} : null, background: null}; };
+  const tools = {};
+  registerPackTools({register: (n, d, s, h) => { tools[n] = {s, h}; }, text: o => o, teamFolder, renderPage, renderFrames: null, shrinkImage: null, signal: new AbortController().signal});
+  assert.ok(tools.make_wow_ad, 'registered');
+  const ads = W.WOW_LAYOUTS.map((layout, i) => ({name: `w${i}`, layout, ...base, ...good[layout]}));
+  const args = z.object(tools.make_wow_ad.s).parse({folder: 'clients/m/wow', brand, ads});
+  const r = await tools.make_wow_ad.h(args);
+  assert.equal(r.passed, true, JSON.stringify(r.toFix));
+  assert.equal(r.files.length, 6);
+  assert.ok(r.files.includes('clients/m/wow/w5-PREVIEW.png'));
+  for (const f of r.files) assert.equal(readFileSync(join(root, f), 'utf8'), 'png');
+  assert.ok(existsSync(join(root, 'clients/m/wow/wow-sheet.jpg')));
+  const note = readFileSync(join(root, 'clients/m/wow/w5-check.md'), 'utf8');
+  assert.match(note, /PASSED/); assert.match(note, /Page only/); assert.match(note, /headline: 118 to 110 px/);
+  assert.ok(pages.every(p => p.width === 1080 && p.height === 1080 || p.height === 620));
+  const two = await tools.make_wow_ad.h(z.object(tools.make_wow_ad.s).parse({folder: 'clients/m/wow', brand, ads: [{...ads[5], name: 'a'}, {...ads[5], name: 'b'}]}));
+  assert.equal(two.passed, false); assert.match(two.toFix.join(' '), /Only one preview/);
+  const failing = await tools.make_wow_ad.h(z.object(tools.make_wow_ad.s).parse({folder: 'clients/m/wow', brand, ads: [{...ads[0], name: 'f', headline: 'One two three four five six seven eight'}]}));
+  assert.equal(failing.passed, false); assert.equal(failing.files.length, 0);
+  assert.match(readFileSync(join(root, 'clients/m/wow/f-check.md'), 'utf8'), /FAILED/);
+});

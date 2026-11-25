@@ -79,7 +79,7 @@ async function renderPage({ file, width, height, root, signal, script, hideCss, 
     if (size.width !== want.width || size.height !== want.height) throw new Error(`The capture came out ${size.width} x ${size.height}, not ${want.width} x ${want.height}.`);
     let background = null;
     if (hideCss) { await wc.insertCSS(hideCss); await wc.executeJavaScript('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))', true); background = { bitmap: (await shoot()).toBitmap(), width, height }; }
-    return { jpeg: picture.toJPEG(quality), result, background, width: want.width, height: want.height };
+    return { jpeg: picture.toJPEG(quality), png: picture.toPNG(), result, background, width: want.width, height: want.height };
   } finally { signal?.removeEventListener('abort', abort); try { wc.debugger.detach(); } catch {} abort(); }
 }
 // Max: draw a moving page frame by frame (make_reel). The page is loaded once in a hidden offscreen window at
