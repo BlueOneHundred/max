@@ -110,6 +110,9 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 ## Max build 18 (25 Nov 2026): fix for build 17
 - Build 17's balanced lines used the CSS shorthand `text-wrap: balance`, which also turns wrapping back on, so a quote the writer had set on two lines ("Rapid after hours / weekend response.") broke onto three again. Now `text-wrap-style: balance` (Electron 42 supports it) and set lines are `white-space: nowrap` on the span too. Found by Claude running Ad Writer's McCance choices through the tool. Test: 1 new; full suite 471 pass, 1 skipped.
 
+## Max build 19 (25 Nov 2026): ** across a line break
+- McCance's "People\n**come\nback.**" printed the stars as text (the ** match did not cross a line break), and the tool's checks did not catch it. Now ** colours words across line breaks, and a field with an unpaired ** is refused before drawing. Rule Checker had flagged it as a watch point. Test: 1 new; full suite 472 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

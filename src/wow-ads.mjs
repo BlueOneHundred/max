@@ -49,7 +49,7 @@ const CHEVRON = '<svg class="chev" viewBox="0 0 10 16" aria-hidden="true"><path 
 
 // **words** are drawn in the highlight colour; \n is a line break; ★ becomes a drawn star (no font has to carry it).
 export function richText(value, starColour) {
-  return esc(value).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>').replace(/\\n|\n/g, '<br>').replace(/★/g, STAR());
+  return esc(value).replace(/\*\*([\s\S]+?)\*\*/g, '<em>$1</em>').replace(/\\n|\n/g, '<br>').replace(/★/g, STAR());
 }
 const plain = v => String(v ?? '').replace(/\*\*/g, '').replace(/\\n|\n/g, ' ').replace(/★/g, ' ').replace(/\s+/g, ' ').trim();
 export const wordCount = v => plain(v).split(' ').filter(w => /[A-Za-z0-9]/.test(w)).length;
@@ -292,6 +292,7 @@ export function wowWordProblems(ad) {
   if (ad.layout !== 'preview' && /(^|\/)stand-ins\//.test(String(ad.photo || ''))) out.push(`${ad.name}: a stand-in photo may only be used in the "preview" layout, never as the business's own ad (decision 86).`);
   const marks = (WOW_SHOWS[ad.layout] || []).filter(k => k !== 'footnote').some(k => /(^|[^*])\*([^*]|$)/.test(String(ad[k] ?? '').replace(/\*\*(.+?)\*\*/g, '$1')));
   if (marks && !String(ad.footnote || '').trim()) out.push(`${ad.name}: a line has a * mark but there is no footnote to explain it.`);
+  for (const [k, v] of Object.entries(ad)) if (typeof v === 'string' && ((v.match(/\*\*/g) || []).length % 2)) out.push(`${ad.name}: "${k}" has ** without its pair; wrap the words to colour in two pairs: **like this**.`);
   if (ad.show !== undefined && !parseShow(ad.show)) out.push(`${ad.name}: "show" must be four numbers, left top right bottom in percent of the photo, e.g. "78% 28% 98% 50%".`);
   if (ad.show !== undefined && (ad.focus !== undefined || ad.zoom !== undefined)) out.push(`${ad.name}: give "show" or focus and zoom, not both.`);
   if (ad.stars !== undefined && (ad.stars < 1 || ad.stars > 5)) out.push(`${ad.name}: stars must be 1 to 5, as the review gave.`);

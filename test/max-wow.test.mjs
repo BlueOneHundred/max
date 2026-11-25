@@ -163,3 +163,11 @@ test('build 18: balancing never undoes a line the writer set (no text-wrap short
   assert.match(html, /text-wrap-style:balance/);
   assert.match(html, /\.lines,\.lines span\{white-space:nowrap\}/);
 });
+
+test('build 19: ** colours words across a line break; an unpaired ** is refused', () => {
+  assert.equal(W.richText('People\n**come\nback.**', '#fff'), 'People<br><em>come<br>back.</em>');
+  const p = W.wowWordProblems({name: 'x', layout: 'split-claim', ...base, ...good['split-claim'], headline: 'People\n**come back.'}).join(' | ');
+  assert.match(p, /\*\* without its pair/);
+  const html = W.wowPage({ad: {name: 'x', layout: 'split-claim', ...base, ...good['split-claim'], headline: 'People\n**come\nback.**'}, brand, images: {'clients/m/photos/van.jpg': 'data:image/png;base64,AA=='}});
+  assert.ok(!/\*\*/.test(html.replace(/<style>[\s\S]*?<\/style>/, '')), 'no stars printed');
+});
