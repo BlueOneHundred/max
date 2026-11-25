@@ -116,3 +116,16 @@ test('build 14: make_wow_page makes the approved page; the sample is never a lin
   const dash = await tools.make_wow_page.h(parse({...args, moreText: 'Ready now — free.'}));
   assert.equal(dash.passed, false); assert.match(dash.toFix.join(' '), /dash/);
 });
+
+test('build 15: "show" names the part of the photo; bad boxes and mixing with focus are refused', () => {
+  assert.deepEqual(W.parseShow('78% 28% 98% 50%'), {x1: 78, y1: 28, x2: 98, y2: 50});
+  assert.equal(W.parseShow('50% 50% 40% 60%'), null); assert.equal(W.parseShow('1 2 3'), null); assert.equal(W.parseShow('0 0 120 50'), null);
+  const p = extra => W.wowWordProblems({name: 'x', layout: 'problem-fix', ...base, ...good['problem-fix'], ...extra}).join(' | ');
+  assert.equal(p({show: '0% 30% 100% 82%'}), '');
+  assert.match(p({show: 'middle'}), /"show" must be four numbers/);
+  assert.match(p({show: '0 30 100 82', focus: '50% 50%'}), /not both/);
+  const html = W.wowPage({ad: {name: 'a', layout: 'problem-fix', ...base, ...good['problem-fix'], show: '10 20 60 50'}, brand, images: {'clients/m/photos/van.jpg': 'data:image/png;base64,AA=='}});
+  assert.match(html, /class="shown" data-show="10 20 60 50"/);
+  assert.match(W.WOW_SCRIPT, /shown\.push/);
+  assert.deepEqual(W.PHOTO_BOXES['big-review'], [1080, 330]);
+});

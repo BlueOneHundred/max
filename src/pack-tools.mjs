@@ -219,7 +219,8 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
     button: z.string().min(1).max(24).describe('Their current ad\'s button words, e.g. "Learn more"'),
     footnote: z.string().max(160).optional().describe('Small print explaining a * mark or a count, e.g. "*30 of 92 written reviews say quick, prompt or fast. Google, Yelp and website, read Nov 2026."'),
     photo: z.string().max(300).optional().describe('Team-folder path: their own photo (clients/<business>/photos/...), or for the preview library/stand-ins/<trade>.png'),
-    focus: z.string().max(20).optional().describe('Crop position "x% y%"'), zoom: z.number().min(1).max(3).optional().describe('1 fills the space; up to 3 to crop in (for example to leave out an old phone number)'),
+    show: z.string().max(40).optional().describe('The part of the photo to show, as a box in percentages of the whole photo: "left% top% right% bottom%", e.g. "78% 28% 98% 50%". The tool never shows anything outside this box: it fills the layout\'s photo box from it, trimming evenly from the long side when the shapes differ, and reports the part really shown. Give a box close to the photo box\'s shape so little is trimmed. In big-review and big-number the business name and the button sit over the bottom fifth of the strip, so keep the subject in its top four fifths. Photo box shapes (width x height): problem-fix and preview 960 x 500, split-claim 560 x 1080, big-review 1080 x 330, big-number 1080 x 400. Use show, not focus and zoom.'),
+    focus: z.string().max(20).optional().describe('Older way to crop: "x% y%". Use show instead.'), zoom: z.number().min(1).max(3).optional().describe('Older way to crop, with focus. Use show instead.'),
     logoLine: z.string().min(1).max(60).describe('The business name line as their logo spells it, e.g. "McCANCE PLUMBING & HEATING · OKOTOKS"'),
   });
   register('make_wow_ad', 'Make the WOW ads (1080 x 1080 PNG): one picture per ad in an approved layout: problem-fix (photo card on top, headline, proof pill, button), split-claim (words left on a slanted dark panel, photo right, proof box), big-review (problem tag, a customer\'s own words as the headline, stars and name, photo strip), bold-text (no photo), big-number (one number huge, photo strip), or preview (problem-fix with a stand-in photo from library/stand-ins/ and the band "SAMPLE PHOTO · NOT YOUR TEAM": page only, never a download). Every text box shrinks to fit within its range; the tool then checks the WOW test (headline 7 words or fewer, 20 or fewer words on the picture), fit, overlaps, edges, contrast, fonts and photo. Writes <folder>/<name>.png (preview: <name>-PREVIEW.png), <name>-check.md and wow-sheet.jpg (all ads side by side).',
@@ -234,7 +235,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       notes.push(...photoNotes);
       const rel = `${folder}/_work`, dir = await teamFolder.target(null, rel, true); await rm(dir, {recursive: true, force: true}); await mkdir(dir, {recursive: true});
       for (const ad of ads) {
-        const problems = wowWordProblems(ad), extra = Object.keys(ad).filter(k => !['name', 'layout', 'logoLine', 'focus', 'zoom', ...WOW_SHOWS[ad.layout]].includes(k) && ad[k] !== undefined);
+        const problems = wowWordProblems(ad), extra = Object.keys(ad).filter(k => !['name', 'layout', 'logoLine', 'focus', 'zoom', 'show', ...WOW_SHOWS[ad.layout]].includes(k) && ad[k] !== undefined);
         const adNotes = extra.length ? [`Not shown in this layout: ${extra.join(', ')}.`] : [];
         if (ad.photo && missing.some(m => m.includes(ad.photo))) problems.push(`${ad.name}: the photo ${ad.photo} was not found in the team folder.`);
         const file = `${folder}/${ad.name}${ad.layout === 'preview' ? '-PREVIEW' : ''}.png`;
@@ -244,6 +245,11 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
           const shot = await renderPage({file: await teamFolder.target(null, `${rel}/${ad.name}.html`), width: WOW_SIZE, height: WOW_SIZE, root: teamFolder.root(), signal, script: WOW_SCRIPT, hideCss: WOW_HIDE_CSS, quality: 95});
           const r = shot.result || {problems: [{kind: 'script', k: 'page'}], texts: [], shrunk: []};
           shrunk = r.shrunk || [];
+          for (const v of r.shown || []) {
+            const f = a => `${a[0]}% to ${a[2]}% across, ${a[1]}% to ${a[3]}% down`;
+            adNotes.push(`Photo shown: ${f(v.shown)} of ${ad.photo} (asked: ${f(v.asked)}; photo box ${v.box[0]} x ${v.box[1]}). Check this part of the photo for phone numbers, faces and plates.`);
+            if (v.px < 500) adNotes.push(`The part shown is only ${v.px} pixels of the photo across, enlarged to ${v.box[0]}: it may look soft.`);
+          }
           const say = {'too long': p => `${ad.name}: the ${p.k} is too long to fit even at its smallest size ("${p.text}"). Shorten it.`, outside: p => `${ad.name}: the ${p.k} reaches the edge of the picture.`, overlap: p => `${ad.name}: ${p.k} overlap.`, font: p => `${ad.name}: the font ${p.k} did not load.`, photo: () => `${ad.name}: the photo did not load.`, script: () => `${ad.name}: the page check did not run.`};
           for (const p of r.problems) problems.push((say[p.kind] || (x => `${ad.name}: ${x.kind} ${x.k}`))(p));
           if (shot.background) for (const p of contrastProblems(r.texts, shot.background.bitmap, WOW_SIZE, WOW_SIZE).problems) problems.push(`${ad.name}: "${p.text}" is hard to read (contrast ${p.ratio}, needs ${p.need}). Move the focus or choose another photo.`);

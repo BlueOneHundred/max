@@ -80,12 +80,26 @@ export function wowColours(brand = {}) {
   return {panel, accent, highlight, soft, pale, notes};
 }
 
+// Build 15 (25 Nov 2026): "show" names the part of the photo to show, as a box in percentages of the photo
+// ("x1% y1% x2% y2%", left top right bottom). The page never shows anything outside that box: it fills the layout's photo
+// box from it, trimming evenly from the long side when the shapes differ, and reports the part really shown. focus and zoom remain
+// for older choices but bots should use show: a bot cannot see where focus and zoom land (McCance test, 25 Nov).
+export const PHOTO_BOXES = {'problem-fix': [960, 500], preview: [960, 500], 'split-claim': [560, 1080], 'big-review': [1080, 330], 'big-number': [1080, 400]};
+export function parseShow(v) {
+  const m = String(v || '').trim().match(/^(\d+(?:\.\d+)?)%?\s+(\d+(?:\.\d+)?)%?\s+(\d+(?:\.\d+)?)%?\s+(\d+(?:\.\d+)?)%?$/);
+  if (!m) return null;
+  const [x1, y1, x2, y2] = m.slice(1).map(Number);
+  return x1 >= 0 && y1 >= 0 && x2 <= 100 && y2 <= 100 && x2 - x1 >= 2 && y2 - y1 >= 2 ? {x1, y1, x2, y2} : null;
+}
 const photoTag = (ad, images, cls = '') => {
   const src = images[ad.photo];
   if (!src) return `<div class="photo ${cls}"></div>`;
+  const band = ad.layout === 'preview' ? `<div class="band" data-k="band">${esc(BAND_TEXT)}</div>` : '';
+  const show = parseShow(ad.show);
+  if (show) return `<div class="photo ${cls}"><img class="shown" data-show="${show.x1} ${show.y1} ${show.x2} ${show.y2}" src="${src}" alt="">${band}</div>`;
   const focus = (ad.focus || '50% 50%').replace(/[^0-9.% a-z]/gi, '');
   const zoom = Math.min(Math.max(Number(ad.zoom) || 1, 1), 3);
-  return `<div class="photo ${cls}"><img src="${src}" style="object-position:${focus};transform-origin:${focus};transform:scale(${zoom})" alt="">${ad.layout === 'preview' ? `<div class="band" data-k="band">${esc(BAND_TEXT)}</div>` : ''}</div>`;
+  return `<div class="photo ${cls}"><img src="${src}" style="object-position:${focus};transform-origin:${focus};transform:scale(${zoom})" alt="">${band}</div>`;
 };
 
 // Base CSS shared by all layouts. Sizes are the mock-ups' sizes; data-max/data-min give each text box its range.
@@ -99,6 +113,7 @@ em{font-style:normal;color:${C.highlight}}
 .chev{width:.42em;height:.62em;margin-left:.35em;vertical-align:.02em;display:inline-block}
 .photo{position:absolute;overflow:hidden;background:#1a1a1a}
 .photo img{width:100%;height:100%;object-fit:cover;display:block}
+.photo img.shown{position:absolute;max-width:none;object-fit:fill}
 .band{position:absolute;left:0;right:0;bottom:0;height:40px;background:rgba(10,20,14,.8);color:#fff;font-weight:700;font-size:17px;letter-spacing:4px;display:flex;align-items:center;justify-content:center;white-space:nowrap}
 .btn{display:inline-flex;align-items:center;border-radius:40px;padding:14px 34px;font-weight:700;font-size:30px;white-space:nowrap;line-height:1.15}
 .btn.line{border:3px solid #fff;color:#fff}
@@ -194,7 +209,12 @@ export function wowPage({ad, brand, images}) {
 export const WOW_SCRIPT = String.raw`(async()=>{
 await document.fonts.ready;
 for(const i of document.images){if(!i.complete)await new Promise(r=>{i.onload=i.onerror=r;});}
-const shrunk=[],problems=[],W=1080,M=24;
+const shrunk=[],problems=[],W=1080,M=24,shown=[];
+for(const im of document.querySelectorAll('img.shown')){const [x1,y1,x2,y2]=im.dataset.show.split(' ').map(Number),box=im.parentElement,bw=box.clientWidth,bh=box.clientHeight,IW=im.naturalWidth,IH=im.naturalHeight;if(!IW)continue;
+ const rw=(x2-x1)/100*IW,rh=(y2-y1)/100*IH;let s=Math.max(bw/rw,bh/rh,bw/IW,bh/IH);const vw=bw/s,vh=bh/s;
+ let vx=(x1+x2)/200*IW-vw/2,vy=(y1+y2)/200*IH-vh/2;vx=Math.min(Math.max(vx,0),IW-vw);vy=Math.min(Math.max(vy,0),IH-vh);
+ Object.assign(im.style,{width:IW*s+'px',height:IH*s+'px',left:-vx*s+'px',top:-vy*s+'px'});
+ const r=v=>Math.round(v*10)/10;shown.push({asked:[x1,y1,x2,y2],shown:[r(vx/IW*100),r(vy/IH*100),r((vx+vw)/IW*100),r((vy+vh)/IH*100)],box:[bw,bh],px:Math.round(vw)});}
 const over=el=>el.scrollWidth>el.clientWidth+1||el.scrollHeight>el.clientHeight+1;
 for(const el of document.querySelectorAll('.fit')){
  const max=+el.dataset.max,min=+el.dataset.min,kids=el.dataset.scale?[...el.querySelectorAll(el.dataset.scale)]:[el];
@@ -221,7 +241,7 @@ for(const el of document.querySelectorAll('[data-k]')){if(el.dataset.k==='row')c
  for(const n of leaves){const cs=getComputedStyle(n),rg=document.createRange();rg.selectNodeContents(n);const b=rg.getBoundingClientRect();let own=null,p=n;
   while(p&&p!==document.body){const o=opaque(getComputedStyle(p).backgroundColor);if(o&&!p.classList.contains('photo')){own=o;break;}p=p.parentElement;}
   texts.push({text:n.innerText.slice(0,40),color:cs.color,size:parseFloat(cs.fontSize),box:[b.left,b.top,b.right,b.bottom],own});}}
-return {shrunk,problems,texts};})()`;
+return {shrunk,problems,texts,shown};})()`;
 
 export const WOW_HIDE_CSS = 'body *{color:transparent!important;text-shadow:none!important}.star,.chev{visibility:hidden!important}';
 
@@ -240,6 +260,8 @@ export function wowWordProblems(ad) {
   if (ad.layout !== 'preview' && /(^|\/)stand-ins\//.test(String(ad.photo || ''))) out.push(`${ad.name}: a stand-in photo may only be used in the "preview" layout, never as the business's own ad (decision 86).`);
   const marks = (WOW_SHOWS[ad.layout] || []).filter(k => k !== 'footnote').some(k => /(^|[^*])\*([^*]|$)/.test(String(ad[k] ?? '').replace(/\*\*(.+?)\*\*/g, '$1')));
   if (marks && !String(ad.footnote || '').trim()) out.push(`${ad.name}: a line has a * mark but there is no footnote to explain it.`);
+  if (ad.show !== undefined && !parseShow(ad.show)) out.push(`${ad.name}: "show" must be four numbers, left top right bottom in percent of the photo, e.g. "78% 28% 98% 50%".`);
+  if (ad.show !== undefined && (ad.focus !== undefined || ad.zoom !== undefined)) out.push(`${ad.name}: give "show" or focus and zoom, not both.`);
   if (ad.stars !== undefined && (ad.stars < 1 || ad.stars > 5)) out.push(`${ad.name}: stars must be 1 to 5, as the review gave.`);
   return out;
 }

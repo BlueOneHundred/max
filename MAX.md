@@ -87,6 +87,12 @@ From test run 2 (McCance Plumbing and Heating, Okotoks, Alberta: one usable phot
 - Anton font bundled (src/book-fonts/anton-400.woff2, OFL, from @fontsource/anton; licence added to LICENSES.txt).
 - Proved in Chrome on McCance's real photo and a stand-in (scripts/pack-preview/wowtest.mjs): all 6 layouts PASSED and match the approved set; a blue brand with longer words shrinks and passes; wrong inputs are refused with reasons. Tests: test/max-wow.test.mjs (6); full suite 467 pass, 1 skipped; test:team 18 pass; verify:public clean.
 
+## Max build 15 (25 Nov 2026): crop by a "show" box
+- From the McCance WOW test run: Ad Writer and Rule Checker spent two rounds calculating where focus and zoom would land, and the real crops did not match (ad 4 showed the building wall and the tops of the van logos; ad 5's logo sat under its button). A bot cannot see where focus and zoom land.
+- **make_wow_ad takes `show`**: the part of the photo to show, as a box in percentages of the whole photo ("left% top% right% bottom%"). The page never shows anything outside the box: it fills the layout's photo frame from it, trimming evenly from the long side when the shapes differ (so a phone number kept outside the box cannot appear). Each check note says "Photo shown: x% to x% across, y% to y% down" and warns when the part shown is under 500 pixels of the photo across. Photo frame shapes are in the tool description (problem-fix and preview 960 x 500, split-claim 560 x 1080, big-review 1080 x 330, big-number 1080 x 400). focus and zoom remain for older choices; giving both is refused.
+- Instructions (team/prompts, Desktop\Max\prompts): Ad Writer crops only with show (measured on the zoomed photo), knows which fields each layout shows, writes the name line in capitals and short split-claim headlines; Rule Checker checks the show box against the photo and fails focus and zoom; Ad Maker never changes a crop and copies each "Photo shown" line into made.md; decision I10 (a Google rating read by Review Miner from the listing is a T1 source) written into Ad Writer and Rule Checker.
+- Proved in Chrome on McCance's photo: the part shown matches the box asked. Tests: 1 new; full suite 468 pass, 1 skipped; test:team 18 pass.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
