@@ -21,6 +21,7 @@ const renderPage = async ({file, width, height, script, hideCss, quality}) => {
 const tools = {};
 registerPackTools({register: (n, d, s, h) => { tools[n] = {h, s}; }, text: o => o, teamFolder, renderPage, renderFrames: null, shrinkImage: null, signal: new AbortController().signal});
 const {z} = await import('/home/claude/max/node_modules/zod/index.js');
-const args = z.object(tools.make_wow_ad.s).parse(JSON.parse(await readFile(process.argv[3], 'utf8')));
-console.log(JSON.stringify(await tools.make_wow_ad.h(args), null, 1));
+const TOOL = process.argv[4] || "make_wow_ad";
+const args = z.object(tools[TOOL].s).parse(JSON.parse(await readFile(process.argv[3], "utf8")));
+console.log(JSON.stringify(await tools[TOOL].h(args), null, 1));
 await browser.close();

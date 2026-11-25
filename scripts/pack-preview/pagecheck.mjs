@@ -104,6 +104,7 @@ for (const vp of [{ name: 'desktop', width: 1366, height: 900 }, { name: 'wide',
     s.links++;
     if (l.h === '#') { if (!l.pay) problems.push(`${vp.name}: empty link "#" (not a payment button)`); continue; }
     if (l.h.startsWith('#')) { if (!(await page.$(l.h))) problems.push(`${vp.name}: jump link ${l.h} has no target`); continue; }
+    if (l.h.startsWith("mailto:")) { if (!/^mailto:[^@\s]+@[^@\s]+\.[a-z]+/i.test(l.h)) problems.push(`${vp.name}: bad mail link ${l.h}`); continue; }
     if (checked.has(l.abs)) continue; checked.add(l.abs);
     const r = await page.request.head(l.abs).catch(() => null);
     if (!r || r.status() !== 200) problems.push(`${vp.name}: link broken ${l.h}`);

@@ -9,6 +9,7 @@ import {imageDataUrl} from './book-builder.mjs';
 import {imageSize} from './book-pictures.mjs';
 import {contrastProblems} from './carousel-builder.mjs';
 import {parsePageMd, pageHtml, pageWordProblems, requiredSections, pageFiles, zipStore, pageCheckNote, PAGE_PLATFORMS, PAGE_CHECK_SCRIPT, posterPath, businessName} from './pack-page.mjs';
+import {wowPageHtml, wowPageWordProblems, WOW_PAGE_CHECK, blurPage} from './wow-page.mjs';
 import {WOW_LAYOUTS, WOW_SIZE, WOW_SCRIPT, WOW_HIDE_CSS, wowPage, wowWordProblems, wowCheckNote, wowSheetHtml, wowColours, wordCount, WOW_SHOWS} from './wow-ads.mjs';
 import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, panelShape, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
 
@@ -264,6 +265,66 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       }
       await rm(dir, {recursive: true, force: true});
       return text({passed: !toFix.length, files, sheet, checks, toFix, notes, note: toFix.length ? 'Not passed. Change the words, focus or zoom named in toFix and run make_wow_ad again for those ads.' : 'Passed. Look at wow-sheet.jpg and every file with zoom_team_image before you finish.'});
+    });
+
+  // Max build 14 (25 Nov 2026): the WOW page (decision 94; design and words approved by Tavin 12:46).
+  const shortText = n => z.string().min(1).max(n);
+  const teamPic = z.string().min(1).max(300).regex(/\.(png|jpe?g)$/i, 'a .png or .jpg file');
+  register('make_wow_page', 'Make the private WOW page for one business (decision 94): their current ad beside the 2 new ads (with downloads); new ad 1 beside the same ad with the stand-in technician (never a download) with the approved reasons why a team photo is better and why it cannot be downloaded; an optional "one thing we noticed" note (only a fact you have checked); 1 to 3 more designs shown small and blurred; one ask: reply to Dan. The layout and the explanations are fixed (approved by Tavin); you give only this business\'s facts. Writes pages/<business>/wow/index.html with its files, page-preview.jpg, page-preview-phone.jpg and page-check.md. Never publishes.',
+    {business: z.string().regex(/^[a-z0-9][a-z0-9-]{0,40}$/).describe('Folder name, e.g. "mccance-plumbing"'),
+     name: shortText(70).describe('Business name as they write it, e.g. "McCance Plumbing & Heating"'), shortName: z.string().max(30).optional().describe('For the email subject, e.g. "McCance"'),
+     town: z.string().max(40).optional(), since: z.string().max(30).optional().describe('When their current ad started, e.g. "June 2024" (from current-ads/ad-1.md)'),
+     brand: brandSchema.extend({highlight: hex.optional()}),
+     current: z.object({file: teamPic.describe('clients/<business>/current-ads/ad-1.jpg'), title: shortText(60), text: shortText(120)}),
+     ads: z.array(z.object({file: teamPic.describe('The made ad, e.g. clients/<business>/wow/wow-1.png'), title: shortText(60), text: shortText(140)})).length(2),
+     preview: z.object({file: teamPic.describe('The -PREVIEW.png made by make_wow_ad')}),
+     situation: shortText(60).describe('Who the ad speaks to, starting the sentence "... is about to let a stranger into their home", e.g. "Someone with no heat"'),
+     insteadOf: z.string().max(40).optional().describe('What their own photo shows, e.g. "parked vans"'), ownTitle: z.string().max(40).optional().describe('e.g. "With your vans"'), ownLine: z.string().max(80).optional().describe('e.g. "Vans show you have a fleet."'),
+     note: z.object({text: shortText(320)}).optional().describe('Only a fact checked in facts.md, e.g. an old phone number on their photo'),
+     more: z.array(teamPic).min(1).max(3).describe('The other made ads (shown blurred)'), moreText: shortText(260)},
+    async (d) => {
+      const toFix = [...wowPageWordProblems({...d, brand: undefined})], notes = [];
+      if (!/-PREVIEW\.png$/i.test(d.preview.file)) toFix.push('The preview must be the -PREVIEW.png file make_wow_ad made (it carries the band).');
+      const used = [d.current.file, ...d.ads.map(a => a.file), d.preview.file, ...d.more];
+      if (new Set(used).size !== used.length) toFix.push('The same file is used twice; the 2 ads, the preview and the more designs must all be different files.');
+      if ([...d.ads.map(a => a.file), ...d.more].some(f => /PREVIEW/i.test(f))) toFix.push('The preview may never be one of the 2 ads or the more designs.');
+      const bytes = {};
+      for (const f of used) { try { bytes[f] = await readFile(await teamFolder.target(null, f)); } catch (error) { if (error.code === 'ENOENT') toFix.push(`${f} does not exist.`); else throw error; } }
+      if (toFix.length) return text({passed: false, toFix});
+      const dir = `pages/${d.business}/wow`, abs = await teamFolder.target(null, dir, true);
+      await rm(abs, {recursive: true, force: true}); await mkdir(abs, {recursive: true});
+      const ext = f => f.toLowerCase().endsWith('.png') ? 'png' : 'jpg', put = async (name, data) => { await teamFolder.writeBytes(null, `${dir}/${name}`, data); return name; };
+      const current = await put(`files/current-ad.${ext(d.current.file)}`, bytes[d.current.file]);
+      const ads = [];
+      for (const [i, a] of d.ads.entries()) { const f = await put(`files/ad-${i + 1}.png`, bytes[a.file]); ads.push({show: f, download: f, title: a.title, text: a.text}); }
+      const preview = await put('files/sample-with-technician.png', bytes[d.preview.file]);
+      const more = [];
+      for (const [i, f] of d.more.entries()) {
+        await teamFolder.writeBytes(null, `${dir}/_blur.html`, Buffer.from(blurPage(imageDataUrl(bytes[f], f))));
+        const shot = await renderPage({file: await teamFolder.target(null, `${dir}/_blur.html`), width: 360, height: 360, root: teamFolder.root(), signal, quality: 80});
+        more.push({show: await put(`files/more-${i + 1}.jpg`, shot.jpeg)});
+      }
+      await rm(await teamFolder.target(null, `${dir}/_blur.html`), {force: true});
+      const C = wowColours(d.brand); notes.push(...C.notes);
+      const html = wowPageHtml({...d, slug: d.business, brand: C, current: {show: current, title: d.current.title, text: d.current.text}, ads, preview: {show: preview}, more});
+      await teamFolder.writeBytes(null, `${dir}/index.html`, Buffer.from(html));
+      const pageFile = await teamFolder.target(null, `${dir}/index.html`), previews = [];
+      for (const [size, width, base] of [['desktop', 1280, 'page-preview'], ['phone', 390, 'page-preview-phone']]) {
+        try {
+          const {result: r} = await renderPage({file: pageFile, width, height: 900, root: teamFolder.root(), signal, script: WOW_PAGE_CHECK, quality: 60});
+          if (r.bad.length) toFix.push(`The page could not show ${r.bad.join(', ')}.`);
+          if (r.previewLinked) toFix.push('The sample with a technician is linked; it must never be a link or a download.');
+          if (r.downloads !== 2) toFix.push(`The page has ${r.downloads} downloads, not 2.`);
+          if (r.overflow) toFix.push(`On ${size === 'phone' ? 'a phone' : 'a desktop'} something on the page sticks out sideways.`);
+          const shot = await renderPage({file: pageFile, width, height: Math.min(15000, Math.max(900, r.height)), root: teamFolder.root(), signal, quality: 80});
+          await teamFolder.writeBytes(null, `${dir}/${base}.jpg`, shot.jpeg); previews.push(`${dir}/${base}.jpg`);
+        } catch (error) { toFix.push(`The page could not be checked on ${size} (${String(error.message || error).slice(0, 120)}).`); }
+      }
+      if (!d.note) notes.push('No "one thing we noticed" note on this page.');
+      notes.push('Nothing was published. Tavin publishes the page folder.');
+      const result = toFix.length ? `FAILED (${toFix.length} to fix)` : 'PASSED';
+      await teamFolder.writeBytes(null, `${dir}/page-check.md`, Buffer.from(`# WOW page for ${d.name}: ${result}\n\nMade by make_wow_page (Max build 14).\nPage: ${dir}/index.html\nDownloads: files/ad-1.png, files/ad-2.png. Shown, never a download: files/sample-with-technician.png. Shown blurred: ${more.map(m => 'files/' + m.show.split('/').pop()).join(', ')}.\n\n## To fix\n${toFix.length ? toFix.map(t => '- ' + t).join('\n') : '- nothing'}\n\n## Notes\n${notes.map(n => '- ' + n).join('\n')}\n`));
+      return text({passed: !toFix.length, page: `${dir}/index.html`, previews, toFix, notes, check: `${dir}/page-check.md`, note: toFix.length ? 'Not passed: fix what toFix names and run make_wow_page again.' : 'Passed. Look at both previews with zoom_team_image, top to bottom, before you finish.'});
     });
 
   if (renderFrames) register('make_pack_video', 'Make the carousel as a 15-second video for your platform, in the shapes its spec sheet\'s pack line lists ("carouselVideo"). Give the same cards as make_pack_carousel. House rules built in (Tavin, 21 Nov 2026): a "title" card is left out (the video opens on step 1) unless keepTitleCard is true; card 1\'s words are on screen from the first frame; the top label and business name stay fixed; cards swipe on feed shapes and dissolve on 9:16; no sound. Every card is measured at its fullest moment against the safe zone. Writes <folder>/<platform>/<name>-video-check.md.',

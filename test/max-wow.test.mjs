@@ -85,3 +85,34 @@ test('build 14: make_wow_ad writes PNGs, a PREVIEW file name, check notes and a 
   assert.equal(failing.passed, false); assert.equal(failing.files.length, 0);
   assert.match(readFileSync(join(root, 'clients/m/wow/f-check.md'), 'utf8'), /FAILED/);
 });
+
+test('build 14: make_wow_page makes the approved page; the sample is never a link; refuses a wrong preview or a dash', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wowpage-'));
+  const files = ['clients/m/current-ads/ad-1.jpg', 'clients/m/wow/a.png', 'clients/m/wow/b.png', 'clients/m/wow/p-PREVIEW.png', 'clients/m/wow/c.png', 'clients/m/wow/d.png'];
+  for (const f of files) { mkdirSync(dirname(join(root, f)), {recursive: true}); writeFileSync(join(root, f), Buffer.from('iVBORw0KGgo=', 'base64')); }
+  const teamFolder = {root: () => root, target: async (_b, p) => resolve(root, p), writeBytes: async (_b, p, bytes) => { const f = resolve(root, p); await mkdir(dirname(f), {recursive: true}); await writeFile(f, bytes); return true; }};
+  const renderPage = async ({script}) => ({jpeg: Buffer.from('jpeg'), png: Buffer.from('png'), result: script ? {bad: [], overflow: false, previewLinked: false, downloads: 2, height: 3400} : null});
+  const tools = {};
+  registerPackTools({register: (n, d, s, h) => { tools[n] = {s, h}; }, text: o => o, teamFolder, renderPage, renderFrames: null, shrinkImage: null, signal: new AbortController().signal});
+  const args = {business: 'm', name: 'McCance Plumbing & Heating', shortName: 'McCance', town: 'Okotoks', since: 'June 2024', brand,
+    current: {file: files[0], title: 'Running since June 2024', text: 'Your van photo with no words on it.'},
+    ads: [{file: files[1], title: 'No heat at 2am?', text: 'Your 24/7 service.'}, {file: files[2], title: 'No hot water?', text: 'Tank or tankless.'}],
+    preview: {file: files[3]}, situation: 'Someone with no heat', insteadOf: 'parked vans', ownTitle: 'With your vans', ownLine: 'Vans show you have a fleet.',
+    more: [files[4], files[5]], moreText: 'Made from your reviews, in your colours.'};
+  const parse = a => z.object(tools.make_wow_page.s).parse(a);
+  const r = await tools.make_wow_page.h(parse(args));
+  assert.equal(r.passed, true, JSON.stringify(r.toFix));
+  const html = readFileSync(join(root, 'pages/m/wow/index.html'), 'utf8');
+  assert.equal((html.match(/ download="/g) || []).length, 2);
+  assert.ok(!/href="[^"]*sample-with-technician/.test(html), 'the sample is never a link');
+  assert.match(html, /Why you can&#39;t download this one|Why you can't download this one/);
+  assert.match(html, /Someone with no heat is about to let a stranger into their home/);
+  assert.match(html, /2 more designs are ready/); assert.match(html, /mailto:dan@blueonehundred\.com\?subject=McCance%20ads/);
+  assert.ok(!html.includes('One thing we noticed'));
+  for (const f of ['files/ad-1.png', 'files/ad-2.png', 'files/sample-with-technician.png', 'files/more-1.jpg', 'files/more-2.jpg', 'page-check.md']) assert.ok(existsSync(join(root, 'pages/m/wow', f)), f);
+  assert.ok(!existsSync(join(root, 'pages/m/wow/files/c.png')), 'the real more designs are not copied');
+  const bad = await tools.make_wow_page.h(parse({...args, preview: {file: files[1]}, ads: [args.ads[0], {...args.ads[1], file: files[3]}]}));
+  assert.equal(bad.passed, false); assert.match(bad.toFix.join(' '), /-PREVIEW\.png/); assert.match(bad.toFix.join(' '), /never be one of the 2 ads/);
+  const dash = await tools.make_wow_page.h(parse({...args, moreText: 'Ready now — free.'}));
+  assert.equal(dash.passed, false); assert.match(dash.toFix.join(' '), /dash/);
+});

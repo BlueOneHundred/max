@@ -33,6 +33,7 @@ const face = (family, file, weight) => {
   if (!fontCache.has(file)) fontCache.set(file, readFileSync(new URL(file + '.woff2', FONT_DIR)).toString('base64'));
   return `@font-face{font-family:'${family}';src:url(data:font/woff2;base64,${fontCache.get(file)}) format('woff2');font-weight:${weight};font-style:normal;font-display:block}`;
 };
+export const INTER_FACES = () => [face('Inter', 'inter-600', 600), face('Inter', 'inter-700', 700), face('Inter', 'inter-800', 800)].join('');
 const FONTS = () => [face('Anton', 'anton-400', 400), face('Archivo Black', 'archivo-black-400', 400), face('Inter', 'inter-600', 600), face('Inter', 'inter-700', 700), face('Inter', 'inter-800', 800)].join('');
 
 const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
