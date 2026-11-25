@@ -171,3 +171,11 @@ test('build 19: ** colours words across a line break; an unpaired ** is refused'
   const html = W.wowPage({ad: {name: 'x', layout: 'split-claim', ...base, ...good['split-claim'], headline: 'People\n**come\nback.**'}, brand, images: {'clients/m/photos/van.jpg': 'data:image/png;base64,AA=='}});
   assert.ok(!/\*\*/.test(html.replace(/<style>[\s\S]*?<\/style>/, '')), 'no stars printed');
 });
+
+test('build 20: the font check asks only for fonts the picture uses; split-claim name line on one line; no build number in notes', () => {
+  assert.match(W.WOW_SCRIPT, /document\.fonts\.load\(w\+' 40px "'\+fam\+'"'\)/);
+  assert.ok(!/for\(const f of \['Anton','Inter','Archivo Black'\]\)if\(!document\.fonts\.check/.test(W.WOW_SCRIPT));
+  const split = W.wowPage({ad: {name: 's', layout: 'split-claim', ...base, ...good['split-claim']}, brand, images: {'clients/m/photos/van.jpg': 'data:image/png;base64,AA=='}});
+  assert.match(split, /data-k="logo" data-max="18" data-min="12" style="[^"]*white-space:nowrap/);
+  assert.ok(!W.wowCheckNote({name: 'a', layout: 'bold-text', file: 'f', result: 'PASSED', problems: [], words: 5}).includes('build 14'));
+});

@@ -329,7 +329,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       if (!d.note) notes.push('No "one thing we noticed" note on this page.');
       notes.push('Nothing was published. Tavin publishes the page folder.');
       const result = toFix.length ? `FAILED (${toFix.length} to fix)` : 'PASSED';
-      await teamFolder.writeBytes(null, `${dir}/page-check.md`, Buffer.from(`# WOW page for ${d.name}: ${result}\n\nMade by make_wow_page (Max build 14).\nPage: ${dir}/index.html\nDownloads: files/ad-1.png, files/ad-2.png. Shown, never a download: files/sample-with-technician.png. Shown blurred: ${more.map(m => 'files/' + m.show.split('/').pop()).join(', ')}.\n\n## To fix\n${toFix.length ? toFix.map(t => '- ' + t).join('\n') : '- nothing'}\n\n## Notes\n${notes.map(n => '- ' + n).join('\n')}\n`));
+      await teamFolder.writeBytes(null, `${dir}/page-check.md`, Buffer.from(`# WOW page for ${d.name}: ${result}\n\nMade by make_wow_page.\nPage: ${dir}/index.html\nDownloads: files/ad-1.png, files/ad-2.png. Shown, never a download: files/sample-with-technician.png. Shown blurred: ${more.map(m => 'files/' + m.show.split('/').pop()).join(', ')}.\n\n## To fix\n${toFix.length ? toFix.map(t => '- ' + t).join('\n') : '- nothing'}\n\n## Notes\n${notes.map(n => '- ' + n).join('\n')}\n`));
       return text({passed: !toFix.length, page: `${dir}/index.html`, previews, toFix, notes, check: `${dir}/page-check.md`, note: toFix.length ? 'Not passed: fix what toFix names and run make_wow_page again.' : 'Passed. Look at both previews with zoom_team_image, top to bottom, before you finish.'});
     });
 

@@ -157,7 +157,7 @@ h1{position:absolute;left:56px;top:175px;width:470px;height:390px;font-family:'A
 <h1 class="fit${/\\n|\n/.test(String(ad.headline || '')) ? ' lines' : ''}" data-k="headline" data-max="190" data-min="110"><span>${R(ad.headline)}</span></h1>
 <div class="box"><div class="n fit" data-k="proofBig" data-max="104" data-min="64" style="height:112px">${R(ad.proofBig)}</div><div class="t fit" data-k="proofText" data-max="34" data-min="24" style="height:84px">${R(ad.proofText)}</div></div>
 <div class="btnwrap fit" data-k="row" data-max="30" data-min="24" data-scale=".btn">${btn('fill')}</div>
-<div class="logo fit" data-k="logo" data-max="20" data-min="15" style="left:60px;bottom:34px;width:440px;height:58px;white-space:normal;line-height:1.35;color:#fff;display:flex;align-items:flex-end">${esc(ad.logoLine)}</div>${foot(`left:60px;top:926px;width:440px;font-size:14px;line-height:1.28;color:${C.soft};opacity:.9`)}`};
+<div class="logo fit" data-k="logo" data-max="18" data-min="12" style="left:60px;bottom:40px;width:440px;height:30px;white-space:nowrap;letter-spacing:1.5px;line-height:1.3;color:#fff;display:flex;align-items:flex-end">${esc(ad.logoLine)}</div>${foot(`left:60px;top:926px;width:440px;font-size:14px;line-height:1.28;color:${C.soft};opacity:.9`)}`};
     case 'big-review': {
       const stars = Math.min(Math.max(Math.round(Number(ad.stars) || 0), 0), 5);
       // Build 16: without a photo the customer's words fill the ad, over a dark band with the name and button.
@@ -262,7 +262,10 @@ for(const el of boxes){const b=rectOf(el);
  if(b.left<M-1||b.top<M-1||b.right>W-M+1||b.bottom>W-M+1){if(!(el.dataset.k==='band'||el.dataset.k==='footnote'&&b.left>=8&&b.right<=W-8&&b.bottom<=W-6))problems.push({kind:'outside',k:el.dataset.k,text:el.innerText.slice(0,60)});}}
 for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){const a=boxes[i],b=boxes[j];if(a.contains(b)||b.contains(a))continue;
  const x=rectOf(a),y=rectOf(b);if(x.left<y.right-2&&y.left<x.right-2&&x.top<y.bottom-2&&y.top<x.bottom-2)problems.push({kind:'overlap',k:a.dataset.k+' + '+b.dataset.k});}
-for(const f of ['Anton','Inter','Archivo Black'])if(!document.fonts.check('40px "'+f+'"'))problems.push({kind:'font',k:f});
+// Build 20: check only the fonts this picture uses, at the weights it uses (the Max app's browser answered "not loaded"
+// for a family the page never used, or for a weight that has no face, although every word was drawn right).
+{const used=new Map();for(const el of document.querySelectorAll('[data-k] , [data-k] *')){const cs=getComputedStyle(el);if(![...el.childNodes].some(c=>c.nodeType===3&&c.textContent.trim()))continue;const fam=cs.fontFamily.split(',')[0].replace(/["']/g,'').trim();if(['Anton','Inter','Archivo Black'].includes(fam))used.set(fam+'|'+cs.fontWeight,{fam,w:cs.fontWeight});}
+ for(const {fam,w} of used.values()){let ok=false;try{const got=await document.fonts.load(w+' 40px "'+fam+'"');ok=got.length>0||document.fonts.check(w+' 40px "'+fam+'"')||[...document.fonts].some(f=>f.family.replace(/["']/g,'')===fam&&f.status==='loaded');}catch(e){}if(!ok)problems.push({kind:'font',k:fam+' '+w});}}
 for(const i of document.images)if(!i.naturalWidth)problems.push({kind:'photo',k:'photo'});
 
 
@@ -300,7 +303,7 @@ export function wowWordProblems(ad) {
 }
 
 export function wowCheckNote({name, layout, file, result, problems, shrunk, notes, words}) {
-  const L = [`# ${name} (${layout}): ${result}`, '', `Made by make_wow_ad (Max build 14), 1080 x 1080.`, `File: ${file}`, `Words on the picture (not counting the business name and footnote): ${words}`];
+  const L = [`# ${name} (${layout}): ${result}`, '', `Made by make_wow_ad, 1080 x 1080.`, `File: ${file}`, `Words on the picture (not counting the business name and footnote): ${words}`];
   if (layout === 'preview') L.push('', `**Page only.** This picture has a stand-in person and the band "${BAND_TEXT}". It is shown on the business's page and is never offered as a download (decision 86).`);
   L.push('', '## To fix', problems.length ? problems.map(p => `- ${p}`).join('\n') : '- nothing');
   if (shrunk?.length) L.push('', '## Shrunk to fit', shrunk.map(s => `- ${s.k}: ${s.from} to ${s.to} px`).join('\n'));

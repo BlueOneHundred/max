@@ -113,6 +113,11 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 ## Max build 19 (25 Nov 2026): ** across a line break
 - McCance's "People\n**come\nback.**" printed the stars as text (the ** match did not cross a line break), and the tool's checks did not catch it. Now ** colours words across line breaks, and a field with an unpaired ** is refused before drawing. Rule Checker had flagged it as a watch point. Test: 1 new; full suite 472 pass, 1 skipped.
 
+## Max build 20 (25 Nov 2026): the font check, and the split-claim name line
+- In the app (Windows), make_wow_ad failed all 6 McCance ads with "the font ... did not load", although every word was drawn in the right font (Ad Maker refused them, rightly). The check asked document.fonts.check for all 3 families at the default weight: a family the picture never used, or a weight with no face, answered "not loaded". Now it checks only the families and weights the picture's words use, after document.fonts.load. Checked in real Electron 42 (scripts/pack-preview/electron-one.cjs).
+- split-claim: the name line stays on one line (no wrap, 18 to 12 px, letter spacing 1.5 px); Ad Maker caught it wrapping "OKOTOKS".
+- Check notes no longer name a build ("Max build 14" confused Ad Maker). Test: 1 new; full suite 473 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
