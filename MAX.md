@@ -107,6 +107,9 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 - Words the writer did not break (quotes, headlines without "\n") are set in as few lines as the box allows: the page shrinks them (down to 72% of the largest size) while that saves a line, with balanced line lengths. A quote may also be set with "\n" (a set line never wraps). The no-photo quote design's problem tag is up to 64 px.
 - Instructions: Ad Writer sets even quote lines and never leaves one word alone on a line. Tests: 1 new; full suite 470 pass, 1 skipped.
 
+## Max build 18 (25 Nov 2026): fix for build 17
+- Build 17's balanced lines used the CSS shorthand `text-wrap: balance`, which also turns wrapping back on, so a quote the writer had set on two lines ("Rapid after hours / weekend response.") broke onto three again. Now `text-wrap-style: balance` (Electron 42 supports it) and set lines are `white-space: nowrap` on the span too. Found by Claude running Ad Writer's McCance choices through the tool. Test: 1 new; full suite 471 pass, 1 skipped.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

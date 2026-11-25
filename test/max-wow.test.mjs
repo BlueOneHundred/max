@@ -156,3 +156,10 @@ test('build 17: unset quotes and headlines are set in as few even lines as fit; 
   assert.match(set, /class="fit lines" data-k="quote"/);
   assert.match(set, /data-k="kicker" data-max="64"/);
 });
+
+test('build 18: balancing never undoes a line the writer set (no text-wrap shorthand)', () => {
+  const html = W.wowPage({ad: {name: 'q', layout: 'big-review', ...base, kicker: 'NO HOT WATER!', quote: 'Rapid after hours\nweekend response.', who: 'jennifer cook, Google review, Aug 2026', stars: 5}, brand, images: {}});
+  assert.ok(!/text-wrap:\s*balance/.test(html), 'the text-wrap shorthand resets wrapping to on');
+  assert.match(html, /text-wrap-style:balance/);
+  assert.match(html, /\.lines,\.lines span\{white-space:nowrap\}/);
+});

@@ -123,7 +123,8 @@ em{font-style:normal;color:${C.highlight}}
 .foot{position:absolute;font-size:15px;line-height:1.3;font-weight:600}
 .fit{overflow:hidden}
 .lines{white-space:nowrap}
-h1 span{text-wrap:balance}
+h1 span{text-wrap-style:balance}
+.lines,.lines span{white-space:nowrap}
 `;
 }
 
