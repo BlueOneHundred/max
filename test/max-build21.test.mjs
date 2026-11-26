@@ -70,6 +70,7 @@ test('Max build 21: Top 3, the pick rule, versions in turn and the spend', () =>
   assert.equal(nextVersion('| date | business | version |\n|---|---|---|\n| 2026-11-26 | a | A | no | no |\n'), 'B');
   assert.equal(nextVersion('| 2026-11-26 | a | A | no | no |\n| 2026-11-26 | b | B | no | no |\n'), 'A');
   assert.equal(monthSpend(['10:00 | Lead Finder | done: x | cost: $0.04 | problems: none\n11:00 | Review Miner | done: y | cost: about $0.03 | problems: none', '12:00 | Package runs | done: z | cost: $0.00 | problems: none']), 0.07);
+  assert.equal(monthSpend(['08:23 | Lead Finder | done: x | cost: $0, treg $0.0412 | problems: none\n09:28 | Review Miner | done: y | cost: $0.00014 (treg $0.00014; balance $8.30016) | problems: none\n09:30 | Max | done: z | cost: $0 | problems: none']), 0.0413);
   assert.equal(verdictLine('Result: PASSED\n', 'Result: PASSED'), true);
   assert.equal(verdictLine('Not "Result: PASSED" yet.\nResult: NOT PASSED', 'Result: PASSED'), false);
 });
@@ -104,7 +105,7 @@ test('Max build 21: a WOW run goes bot by bot, routes a failed rule check to Ad 
     await p.tick();
     run = p.findWow(B); assert.equal(run.status, 'review');
     const review = await readFile(join(root, `pipeline/wow-${B}/review.html`), 'utf8');
-    assert.match(review, /Ready for your review/); assert.match(review, /wow-1\.png/); assert.match(review, /leads\/ads\/test-plumbing\/ad-1\.png/); assert.match(review, /\[page link\]/); assert.match(review, /All 6 made/);
+    assert.match(review, /Ready for your review/); assert.match(review, /wow-1\.png/); assert.match(review, /leads\/ads\/test-plumbing\/ad-1\.png/); assert.match(review, /\[page link\]/); assert.ok(review.indexOf('Hi Test team') < review.indexOf('Notes from the bots')); assert.match(review, /All 6 made/);
     assert.match(await readFile(join(root, `pipeline/wow-${B}/status.md`), 'utf8'), /Status: review/);
     assert.match(await readFile(join(root, 'pipeline/status.md'), 'utf8'), /WOW: test-plumbing \(version A\)/);
     assert.ok(JSON.parse(await readFile(join(root, 'pipeline/wow-steps.json'), 'utf8')).steps.length === WOW_STEPS.steps.length);

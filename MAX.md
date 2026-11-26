@@ -131,6 +131,10 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 - **Stop reasons** name the cause: the bot's error line and the tools that failed (`failureDetail` in `src/pipeline.mjs`).
 - Tests: `test/max-build22.test.mjs`.
 
+## Max build 23 (26 Nov 2026): the spend count, the review page
+- `monthSpend` reads the treg amount in run lines such as "cost: $0, treg $0.0412" and "cost: $0.00014 (treg $0.00014; balance $8.30)" (never a balance); before, only the first amount ($0) was read.
+- Review pages show the email first (To, From, subjects, emails 1 to 3) and fold Outreach Writer's notes and checks under it (`splitEmail`).
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

@@ -144,8 +144,14 @@ export function nextVersion(abText) {
 // Decision 105: Max's treg spend this month, from the cost on Max's own run lines (board/runs-<date>.md).
 export function monthSpend(runFiles) {
   let total = 0;
-  for (const text of runFiles) for (const m of String(text).matchAll(/\|\s*cost:\s*(?:about\s*)?(?:US)?\$\s*(\d+(?:\.\d+)?)/gi)) total += Number(m[1]);
-  return Math.round(total * 100) / 100;
+  // Build 23: bots write "cost: $0, treg $0.0412" or "cost: $0.00014 (treg $0.00014; balance $8.30)": the treg amount
+  // counts when it is named (never a balance), otherwise the first amount (26 Nov: only "$0" was read, so treg was missed).
+  for (const text of runFiles) for (const m of String(text).matchAll(/\|\s*cost:([^|\n]*)/gi)) {
+    const field = m[1].replace(/balance[^;)]*/gi, ''), treg = [...field.matchAll(/treg[^$\d]{0,12}\$\s*(\d+(?:\.\d+)?)/gi)];
+    if (treg.length) for (const t of treg) total += Number(t[1]);
+    else { const first = field.match(/\$\s*(\d+(?:\.\d+)?)/); if (first) total += Number(first[1]); }
+  }
+  return Math.round(total * 10000) / 10000;
 }
 
 export const DAILY = {
@@ -164,6 +170,16 @@ export const leadMessage = ({date, count}) => `Daily lead search (from the Max a
 export const leadSecondMessage = ({date}) => `Second try for today's leads (from the Max app): leads/leads-${date}.md has no "Status: done" line yet. Finish today's lead search now (keep anything already in the file and add to it), with the "## Top 3", the "- Folder:" and "- Country:" lines and the last line "Status: done". Don't ask questions.`;
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+// Build 23: the review page shows the email first (To, From, subjects, emails 1 to 3) and folds the drafting notes under it.
+export function splitEmail(text) {
+  const lines = String(text || '').split('\n'), start = lines.findIndex(l => /email 1\b/i.test(l));
+  if (start < 0) return {main: String(text || '').trim(), notes: ''};
+  const end = lines.findIndex((l, i) => i > start && /^##\s+(After a reply|Send time|Before sending|Checks|For Max)/i.test(l));
+  const head = lines.slice(0, start).filter(l => /^\**\s*(To|From|Subject options?)\s*:/i.test(l));
+  const main = [...head, '', ...lines.slice(start, end < 0 ? undefined : end)].join('\n').trim();
+  const notes = [...lines.slice(0, start).filter(l => !head.includes(l)), ...(end < 0 ? [] : lines.slice(end))].join('\n').trim();
+  return {main, notes};
+}
 // One business's whole set side by side (standing rule: show Tavin a whole set side by side). Paths are relative to pipeline/.
 export function reviewSection({run, current = [], ads = [], email = '', forMax = [], rel = p => '../' + p}) {
   const img = (p, label) => `<figure><a href="${esc(rel(p))}"><img src="${esc(rel(p))}" alt="${esc(label)}"></a><figcaption>${esc(label)}</figcaption></figure>`;
@@ -174,7 +190,7 @@ ${run.status === 'review' ? '' : `<pre class="why">${esc(run.reason || '')}</pre
 <div class="row">${current.map((p, i) => img(p, `Their ad now${current.length > 1 ? ' ' + (i + 1) : ''}`)).join('')}${ads.filter(a => /wow-[12]\.png$/.test(a)).map(p => img(p, p.includes('wow-1') ? 'New ad 1 (download)' : 'New ad 2 (download)')).join('')}${ads.filter(a => /PREVIEW/.test(a)).map(p => img(p, 'Preview, stand-in (page only)')).join('')}</div>
 <div class="row small">${ads.filter(a => /wow-[3-9]\.png$/.test(a)).map(p => img(p, 'More (blurred on the page)')).join('')}</div>
 <div class="row"><figure><a href="${esc(rel(page + 'index.html'))}"><img src="${esc(rel(page + 'page-preview.jpg'))}" alt="Page"></a><figcaption>The page (click to open). Not published.</figcaption></figure>
-<div class="mail"><h3>Email (${esc(run.version)})</h3><pre>${esc(email.trim() || 'No email yet.')}</pre></div></div>
+<div class="mail"><h3>Email (${esc(run.version)})</h3>${(() => { const e = splitEmail(email); return `<pre>${esc(e.main || 'No email yet.')}</pre>${e.notes ? `<details><summary>Outreach Writer's notes and checks</summary><pre>${esc(e.notes)}</pre></details>` : ''}`; })()}</div></div>
 ${forMax.length ? `<div class="note"><b>Notes from the bots:</b><br>${forMax.map(esc).join('<br>')}</div>` : ''}</section>`;
 }
 export function readyPage({date, sections, summary}) {
@@ -185,7 +201,7 @@ section{background:#fff;border-radius:14px;padding:22px 26px;margin:22px 0;box-s
 .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin:12px 0}figure{margin:0;width:360px}.small figure{width:240px}
 figure img{width:100%;border-radius:8px;display:block;border:1px solid #dde}figcaption{font-size:14px;color:#445;margin-top:4px}
 .mail{flex:1;min-width:380px}.mail pre,.why{white-space:pre-wrap;font-family:inherit;font-size:16px;background:#f7f8f7;padding:14px;border-radius:8px;margin:0}
-.ok{color:#1d6b33;font-weight:700}.bad{color:#a33;font-weight:700}.note{color:#7a5200;margin-top:10px}</style></head><body><main>
+.ok{color:#1d6b33;font-weight:700}details{margin-top:10px}summary{cursor:pointer;color:#445;font-size:15px}.bad{color:#a33;font-weight:700}.note{color:#7a5200;margin-top:10px}</style></head><body><main>
 <h1>Ready for you: ${esc(date)}</h1><p>${esc(summary)}</p><p>Nothing is published or sent. For version A, publish the page and put its link in place of [page link]; then send.</p>
 ${sections.join('\n')}</main></body></html>`;
 }
