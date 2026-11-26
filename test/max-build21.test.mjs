@@ -102,6 +102,7 @@ test('Max build 21: a WOW run goes bot by bot, routes a failed rule check to Ad 
     await step('Ad Maker', {...Object.fromEntries(pngs), [`clients/${B}/wow/made.md`]: '# Made\n\nResult: PASSED\n\n## For Max\nAll 6 made.\n'});
     await step('Page Builder', {[`pages/${B}/wow/page-check.md`]: '# WOW page for Test Plumbing: PASSED\n', [`pages/${B}/wow/index.html`]: '<html></html>', [`pages/${B}/wow/page-preview.jpg`]: 'x'});
     await step('Outreach Writer', {[`outreach/${B}-emails.md`]: emailA});
+    await step('Visual Check', {[`clients/${B}/wow/final-check.md`]: '# Final check\n\nResult: PASSED\n'});
     await p.tick();
     run = p.findWow(B); assert.equal(run.status, 'review');
     const review = await readFile(join(root, `pipeline/wow-${B}/review.html`), 'utf8');

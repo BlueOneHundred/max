@@ -7,14 +7,14 @@
 // Before build 21 Tavin pasted Max's message into every bot by hand.
 import {WOW_LAYOUTS, wowWordProblems} from './wow-ads.mjs';
 
-export const WOW_BOTS = ['Review Miner', 'Fact Finder', 'Ad Writer', 'Rule Checker', 'Ad Maker', 'Page Builder', 'Outreach Writer'];
+export const WOW_BOTS = ['Review Miner', 'Fact Finder', 'Ad Writer', 'Rule Checker', 'Ad Maker', 'Page Builder', 'Outreach Writer', 'Visual Check'];
 export const COUNTRIES = ['US', 'CA', 'UK', 'AU', 'NZ'];
 const COUNTRY_ALIASES = {GB: 'UK', USA: 'US', 'UNITED STATES': 'US', CANADA: 'CA', 'UNITED KINGDOM': 'UK', AUSTRALIA: 'AU', 'NEW ZEALAND': 'NZ'};
 export const validBusiness = s => /^[a-z0-9][a-z0-9-]{0,40}$/.test(String(s || ''));
 
 // The steps. Saved to pipeline/wow-steps.json in the team folder the first time, so they can change without a build.
 export const WOW_STEPS = {
-  version: 1,
+  version: 2,
   steps: [
     {id: 'reviews', bot: 'Review Miner', fixes: 2, task: 'read the reviews for {business} ({name}; lead in {lead}) and write clients/{business}/reviews.md',
       gates: [{file: 'clients/{business}/reviews.md'}]},
@@ -34,6 +34,16 @@ export const WOW_STEPS = {
       gates: [{file: 'pages/{business}/wow/page-check.md', line: '^# WOW page for .+: PASSED\\s*$'}, {file: 'pages/{business}/wow/index.html'}]},
     {id: 'email', bot: 'Outreach Writer', fixes: 2, task: 'write email 1 in version {version}, and its two follow-ups, in outreach/{business}-emails.md',
       gates: [{email: true}]},
+    // Build 25 (decision 113): Visual Check looks at the whole set by eye, the check Claude did by hand until 26 Nov.
+    {id: 'check', bot: 'Visual Check', fixes: 1, task: 'check the whole WOW set for {business} (the ads, the page previews and the email) and write clients/{business}/wow/final-check.md',
+      retry: ['Ad Writer', 'Rule Checker', 'Ad Maker', 'Page Builder', 'Outreach Writer', 'Visual Check'],
+      fixNote: {'Ad Writer': 'Visual Check found a fault: make only the "## Fixes" lines starting "Ad Writer:" in clients/{business}/wow/final-check.md, in choices.json and choices.md. If there is none for you, change nothing and say so.',
+        'Rule Checker': 'Check only what Ad Writer has just changed in clients/{business}/wow/choices.json (if anything) and update rule-check.md. If nothing changed, say so.',
+        'Ad Maker': 'If clients/{business}/wow/choices.json changed in this fix run, make the ads again and update made.md; otherwise change nothing and say so.',
+        'Page Builder': 'Make the WOW page for {business} again if the ads changed or final-check.md has a "Page Builder:" fix line; otherwise change nothing and say so.',
+        'Outreach Writer': 'Make only the "## Fixes" lines starting "Outreach Writer:" in clients/{business}/wow/final-check.md, in outreach/{business}-emails.md. If there is none for you, change nothing and say so.',
+        'Visual Check': 'Check the whole set for {business} again after the fixes and update clients/{business}/wow/final-check.md.'},
+      gates: [{file: 'clients/{business}/wow/final-check.md', verdict: 'Result: PASSED'}]},
     {id: 'review', review: true}
   ]
 };
