@@ -8,6 +8,26 @@
 import {INTER_FACES} from './wow-ads.mjs';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 export const REPLY_EMAIL = 'dan@blueonehundred.com';
+// Build 22: a phone number never breaks across two lines ("(403)" / "625-6644" on the McCance page, 26 Nov).
+export const keepPhones = html => String(html).replace(/(?:\+?\d{1,3}[\s.-]?)?(?:\(\d{2,5}\)|\d{2,5})[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g, m => `<span class="nb">${m}</span>`);
+const plain = s => String(s ?? '').replace(/\*\*/g, '').replace(/\\n/g, '\n');
+// Build 22 (Tavin, 26 Nov 2026): "how the new ads are built" (the approved formula, decision 84, and the WOW test, decision 82),
+// shown on new ad 1 with numbered marks. Only the new ad is explained; their current ad is never scored. The words come from
+// ad 1 itself (choices.json), so nothing is typed twice. Marks sit on the problem-fix layout's fixed places (1080 x 1080).
+export const ANATOMY_MARKS = [{n: 4, side: 'left', y: 29.6}, {n: 1, side: 'left', y: 61.7}, {n: 2, side: 'left', y: 72.6}, {n: 3, side: 'left', y: 84.6}, {n: 5, side: 'right', y: 84.6}];
+export function anatomyItems(ad) {
+  if (!ad || ad.layout !== 'problem-fix') return null;
+  const lines = plain(ad.headline).split('\n').map(l => l.trim()).filter(Boolean);
+  const proof = plain(ad.proof).trim(), button = plain(ad.button).trim();
+  if (!lines.length || !proof || !button) return null;
+  return [
+    {n: 1, title: 'The problem, in your customer\'s words.', quote: lines[0], text: 'People scrolling stop for their own problem, not for a company name.'},
+    {n: 2, title: 'Your answer, straight after.', quote: lines.slice(1).join(' '), text: 'Something you already do, said in a few words.'},
+    {n: 3, title: 'One proof they can check.', quote: proof, text: 'Your own number. It says more than words like "trusted" or "quality".'},
+    {n: 4, title: 'Your own photo.', quote: '', text: 'Real, not stock, so people see the actual business.'},
+    {n: 5, title: 'One button.', quote: button, text: 'One clear next step.'}
+  ].filter(i => i.n !== 2 || i.quote);
+}
 
 export function wowPageWordProblems(words) {
   const problems = [], all = JSON.stringify(words);
@@ -63,6 +83,18 @@ h2{font-size:30px;line-height:1.2;margin-bottom:10px;font-weight:800}
 .note{background:#fff8e8;border:1px solid #f0dcae;border-radius:16px;padding:22px 26px;max-width:860px}
 .note h3{font-size:19px;margin-bottom:6px}
 .more{display:flex;gap:18px;margin:6px 0 4px;flex-wrap:wrap}
+.nb{white-space:nowrap}
+.anat{display:grid;grid-template-columns:540px 1fr;gap:32px;align-items:start}
+.anat figure{position:relative;margin:0;padding:0 44px}
+.anat figure img{width:100%;display:block;border-radius:16px}
+.mark{position:absolute;width:34px;height:34px;margin-top:-17px;border-radius:50%;background:var(--ink);color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center}
+.anat ol{list-style:none;padding:0;display:grid;gap:18px}
+.anat li{display:grid;grid-template-columns:40px 1fr;gap:14px;align-items:start}
+.anat .num{width:34px;height:34px;border-radius:50%;background:var(--ink);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+.anat h3{font-size:19px;margin-bottom:2px}
+.anat q{display:block;font-weight:700;color:var(--green);quotes:none}
+.anat p{font-size:16px;color:var(--muted)}
+.anat .short{margin-top:22px;font-size:16px;color:var(--muted)}
 .more img{width:160px;height:160px;border-radius:12px;display:block}
 .ask{background:var(--ink);color:#fff;text-align:center;padding:64px 0;border:0}
 .ask h2{font-size:34px}
@@ -70,7 +102,7 @@ h2{font-size:30px;line-height:1.2;margin-bottom:10px;font-weight:800}
 .reply{display:inline-block;background:${C.highlight};color:var(--ink);font-weight:800;font-size:22px;text-decoration:none;padding:18px 36px;border-radius:14px}
 footer{padding:28px 0 40px;color:var(--muted);font-size:14px}
 img{-webkit-user-drag:none}
-@media (max-width:820px){.grid3,.pair,.why{grid-template-columns:1fr}header h1{font-size:32px}h2{font-size:25px}body{font-size:17px}.more img{width:100px;height:100px}}
+@media (max-width:820px){.grid3,.pair,.why,.anat{grid-template-columns:1fr}.anat figure{padding:0 34px}.mark{width:28px;height:28px;margin-top:-14px;font-size:15px}header h1{font-size:32px}h2{font-size:25px}body{font-size:17px}.more img{width:100px;height:100px}}
 </style></head><body>
 
 <header><div class="wrap">
@@ -89,7 +121,16 @@ img{-webkit-user-drag:none}
   </div>
 </div></section>
 
-<section><div class="wrap">
+${d.anatomy ? `<section><div class="wrap">
+  <h2>Why the new ads look like this</h2>
+  <p class="lead">Each new ad does 5 things. Here they are on new ad 1.</p>
+  <div class="anat">
+    <figure><img src="${esc(a1.show)}" alt="New ad 1, marked">${ANATOMY_MARKS.filter(m => d.anatomy.some(i => i.n === m.n)).map(m => `<span class="mark" style="${m.side}:2px;top:${m.y}%">${m.n}</span>`).join('')}</figure>
+    <div><ol>${d.anatomy.map(i => `<li><span class="num">${i.n}</span><div><h3>${esc(i.title)}</h3>${i.quote ? `<q>${esc(i.quote)}</q>` : ''}<p>${esc(i.text)}</p></div></li>`).join('')}</ol>
+    <p class="short">And 20 words or fewer on the picture, so it reads in a second on a phone. Big advertisers that test many ads on Facebook keep theirs this short too.</p></div>
+  </div>
+</div></section>
+` : ''}<section><div class="wrap">
   <h2>The same ad, with one of your team in it</h2>
   <p class="lead">This is what new ad 1 looks like with a person doing the work${d.insteadOf ? ` instead of ${esc(d.insteadOf)}` : ''}.</p>
   <div class="pair">
@@ -103,7 +144,7 @@ img{-webkit-user-drag:none}
 </div></section>
 ${d.note ? `
 <section><div class="wrap">
-  <div class="note"><h3>One thing we noticed</h3><p>${esc(d.note.text)}</p></div>
+  <div class="note"><h3>One thing we noticed</h3><p>${keepPhones(esc(d.note.text))}</p></div>
 </div></section>
 ` : ''}
 <section><div class="wrap">

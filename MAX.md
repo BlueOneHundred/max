@@ -125,8 +125,14 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 - `scripts/pack-preview/wow-electron.cjs`: the real make_wow_ad in real Electron with the app's own photo shrink (matches the app; solved the session 11 wow-3 crop puzzle: no app bug).
 - Tests: `test/max-build21.test.mjs` (made-up businesses only).
 
+## Max build 22 (26 Nov 2026): WebP photos, the "why" section, phone numbers
+- **WebP photos** (`src/image-decode.cjs`): nativeImage reads only PNG and JPEG, so save_image_to_team, the crops and zoom_team_image failed on WebP (Marshall Electrics' site; Fact Finder paused, the WOW run stopped). A picture nativeImage cannot read is drawn in a hidden page inside the team folder and taken as a PNG (at most 4096 px on the long side). `imageSize` reads WebP sizes.
+- **The WOW page** (`src/wow-page.mjs`): "Why the new ads look like this" after the ads (Tavin, 26 Nov): new ad 1 with 5 numbered marks beside the picture (the problem, the answer, one proof, their own photo, one button: the formula, decision 84, and the WOW test, decision 82), the words taken by make_wow_page from ad 1 in choices.json; only for a problem-fix ad 1; their current ad is never scored. Phone numbers never break across lines.
+- **Stop reasons** name the cause: the bot's error line and the tools that failed (`failureDetail` in `src/pipeline.mjs`).
+- Tests: `test/max-build22.test.mjs`.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 
 ## Tests
-`npm test` (436 pass, 1 skipped at Max build 1; 449 pass, 1 skipped at Max build 2; 482 pass at Max build 21), `npm run test:team`, `npm run verify:public`.
+`npm test` (436 pass, 1 skipped at Max build 1; 449 pass, 1 skipped at Max build 2; 482 pass at Max build 21; 486 at Max build 22), `npm run test:team`, `npm run verify:public`.

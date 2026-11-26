@@ -9,7 +9,7 @@ import {imageDataUrl} from './book-builder.mjs';
 import {imageSize} from './book-pictures.mjs';
 import {contrastProblems} from './carousel-builder.mjs';
 import {parsePageMd, pageHtml, pageWordProblems, requiredSections, pageFiles, zipStore, pageCheckNote, PAGE_PLATFORMS, PAGE_CHECK_SCRIPT, posterPath, businessName} from './pack-page.mjs';
-import {wowPageHtml, wowPageWordProblems, WOW_PAGE_CHECK, blurPage} from './wow-page.mjs';
+import {wowPageHtml, wowPageWordProblems, WOW_PAGE_CHECK, blurPage, anatomyItems} from './wow-page.mjs';
 import {WOW_LAYOUTS, WOW_SIZE, WOW_SCRIPT, WOW_HIDE_CSS, wowPage, wowWordProblems, wowCheckNote, wowSheetHtml, wowColours, wordCount, WOW_SHOWS} from './wow-ads.mjs';
 import {readableAccent, PLATFORMS, FPS, parseSpec, packFormats, stillPage, panelShape, videoPage, videoTiming, STILL_SCRIPT, HIDE_WORDS_CSS, VIDEO_SETUP, videoFrameScript, holdFrames, contactSheetHtml, packToFix, packCheckNote, AD_VIDEO_SECONDS, VIDEO_SECONDS} from './pack-maker.mjs';
 
@@ -276,7 +276,7 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
   // Max build 14 (25 Nov 2026): the WOW page (decision 94; design and words approved by Tavin 12:46).
   const shortText = n => z.string().min(1).max(n);
   const teamPic = z.string().min(1).max(300).regex(/\.(png|jpe?g)$/i, 'a .png or .jpg file');
-  register('make_wow_page', 'Make the private WOW page for one business (decision 94): their current ad beside the 2 new ads (with downloads); new ad 1 beside the same ad with the stand-in technician (never a download) with the approved reasons why a team photo is better and why it cannot be downloaded; an optional "one thing we noticed" note (only a fact you have checked); 1 to 3 more designs shown small and blurred; one ask: reply to Dan. The layout and the explanations are fixed (approved by Tavin); you give only this business\'s facts. Writes pages/<business>/wow/index.html with its files, page-preview.jpg, page-preview-phone.jpg and page-check.md. Never publishes.',
+  register('make_wow_page', 'Make the private WOW page for one business (decision 94): their current ad beside the 2 new ads (with downloads); "why the new ads look like this" (new ad 1 with 5 numbered points, made by the tool from ad 1\'s own words in choices.json); new ad 1 beside the same ad with the stand-in technician (never a download) with the approved reasons why a team photo is better and why it cannot be downloaded; an optional "one thing we noticed" note (only a fact you have checked); 1 to 3 more designs shown small and blurred; one ask: reply to Dan. The layout and the explanations are fixed (approved by Tavin); you give only this business\'s facts. Writes pages/<business>/wow/index.html with its files, page-preview.jpg, page-preview-phone.jpg and page-check.md. Never publishes.',
     {business: z.string().regex(/^[a-z0-9][a-z0-9-]{0,40}$/).describe('Folder name, e.g. "mccance-plumbing"'),
      name: shortText(70).describe('Business name as they write it, e.g. "McCance Plumbing & Heating"'), shortName: z.string().max(30).optional().describe('For the email subject, e.g. "McCance"'),
      town: z.string().max(40).optional(), since: z.string().max(30).optional().describe('When their current ad started, e.g. "June 2024" (from current-ads/ad-1.md)'),
@@ -312,7 +312,12 @@ export function registerPackTools({register, text, teamFolder, renderPage, rende
       }
       await rm(await teamFolder.target(null, `${dir}/_blur.html`), {force: true});
       const C = wowColours(d.brand); notes.push(...C.notes);
-      const html = wowPageHtml({...d, slug: d.business, brand: C, current: {show: current, title: d.current.title, text: d.current.text}, ads, preview: {show: preview}, more});
+      // Build 22: the "why the new ads look like this" section, from ad 1's own words in choices.json.
+      let anatomy = null;
+      try { const ch = JSON.parse((await readFile(await teamFolder.target(null, `clients/${d.business}/wow/choices.json`))).toString('utf8')), name = d.ads[0].file.split('/').pop().replace(/\.png$/i, ''); anatomy = anatomyItems((ch.ads || []).find(a => a.name === name)); } catch {}
+      if (anatomy) { const words = wowPageWordProblems(anatomy); if (words.length) { toFix.push(...words.map(w => 'Ad 1 (in the "why" section): ' + w)); anatomy = null; } }
+      notes.push(anatomy ? 'The "why the new ads look like this" section explains new ad 1 with its own words.' : 'No "why the new ads look like this" section: new ad 1 is not a problem-fix ad in choices.json (or choices.json could not be read).');
+      const html = wowPageHtml({...d, slug: d.business, brand: C, current: {show: current, title: d.current.title, text: d.current.text}, ads, preview: {show: preview}, more, anatomy});
       await teamFolder.writeBytes(null, `${dir}/index.html`, Buffer.from(html));
       const pageFile = await teamFolder.target(null, `${dir}/index.html`), previews = [];
       for (const [size, width, base] of [['desktop', 1280, 'page-preview'], ['phone', 390, 'page-preview-phone']]) {

@@ -271,6 +271,18 @@ export class Pipelines {
     await this.service._deliver(c, message, [], {scheduled: {id: isWow(run) ? 'wow-' + run.business : isBook(run) ? 'book-' + run.base : 'package-' + run.handle, runId, title: isWow(run) ? `WOW run ${run.business}: ${bot}` : isBook(run) ? `Book run ${run.base}: ${bot}` : `Package @${run.handle}: ${bot}`, scheduledFor: at}});
     return true;
   }
+  // Build 22: why a bot's reply failed (its error line and the tools that failed), so the stop reason names the cause
+  // (26 Nov: Fact Finder paused after 4 failed save_image_to_team calls on WebP photos; the reason said only "an error").
+  failureDetail(_id, bot) {
+    try {
+      const c = this.botConversation(bot); const m = [...(c?.messages || [])].reverse().find(x => x.role === 'assistant' && ['error', 'cancelled'].includes(x.status));
+      if (!m) return '';
+      const failed = {}; for (const a of m.activities || []) if (a.status === 'error') failed[a.name] = (failed[a.name] || 0) + 1;
+      const tools = Object.entries(failed).map(([n, k]) => `${n} failed ${k} time${k > 1 ? 's' : ''}`).join(', ');
+      const why = String(m.error || '').replace(/\s+/g, ' ').slice(0, 160);
+      return (why ? ` It said: "${why}".` : '') + (tools ? ` Tools: ${tools}.` : '');
+    } catch { return ''; }
+  }
   // The bot's reply to the step message: 'waiting', 'done' or 'failed'.
   replyState(run) {
     const c = this.service.state.conversations.find(c => c.id === run.current.conversationId);
@@ -386,7 +398,7 @@ export class Pipelines {
     if (state === 'lost') { delete run.current; await this.save(); return; }
     const finished = run.current.bot; run.history.push({step: step.id, bot: finished, at: run.current.at, finishedAt: this.now(), state}); delete run.current;
     run.queue.shift(); run.messages.shift();
-    if (state === 'failed' && !run.queue.length) return this.retryOrStop(run, step, all, [`${finished}'s run ended with an error or was stopped before it finished.`]);
+    if (state === 'failed' && !run.queue.length) return this.retryOrStop(run, step, all, [`${finished}'s run ended with an error or was stopped before it finished.${this.failureDetail(run.history.at(-1)?.conversationId || '', finished)}`]);
     if (run.queue.length) { await this.save(); return; }
     const reasons = await this.gates(run, step, run.stepStartedAt);
     if (!reasons.length) {
