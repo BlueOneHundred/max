@@ -135,6 +135,9 @@ Tavin on the McCance WOW set: every ad we send is a first impression, so nothing
 - `monthSpend` reads the treg amount in run lines such as "cost: $0, treg $0.0412" and "cost: $0.00014 (treg $0.00014; balance $8.30)" (never a balance); before, only the first amount ($0) was read.
 - Review pages show the email first (To, From, subjects, emails 1 to 3) and fold Outreach Writer's notes and checks under it (`splitEmail`).
 
+## Max build 24 (26 Nov 2026): the page header (Tavin)
+- `src/wow-page.mjs` header: the h1 "Two new versions of your Facebook ad, free to keep." on one line (40 px, shrinks on narrow screens, wraps on phones); the header's text runs wider than the page (left edge still lined up with the page) and sits on 3 lines: "Your current ad has run since <month>. We made two new versions from your own reviews and your own photo." / "Download them, run them, change them." / "No strings." (larger). Checked at 1920, 1366, 1280, 1024 and 390 px wide: one-line h1 and 3 lines from 1280 up, nothing sideways anywhere.
+
 ## Notes kept from Toby
 `TOBY.md` lists every Toby build (1 to 45) and what it added; it is kept as the history of the engine Max is built on.
 

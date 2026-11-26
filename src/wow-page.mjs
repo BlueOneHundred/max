@@ -59,8 +59,11 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-seri
 .wrap{max-width:1120px;margin:0 auto;padding:0 28px}
 header{background:var(--ink);color:#fff;padding:56px 0 48px}
 header .from{font-size:15px;letter-spacing:2px;text-transform:uppercase;opacity:.75;font-weight:700}
-header h1{font-size:44px;line-height:1.15;margin:12px 0 14px;font-weight:800}
-header p{font-size:20px;max-width:760px;opacity:.92}
+header .wrap{max-width:none;padding-left:max(28px,calc((100% - 1120px) / 2 + 28px));padding-right:28px}
+header h1{font-size:clamp(26px,calc((100vw - 136px) / 25.6),40px);line-height:1.15;margin:12px 0 16px;font-weight:800;white-space:nowrap;letter-spacing:-.3px}
+header p{font-size:19px;opacity:.92}
+header p span{display:block}
+header p .big{font-size:23px;font-weight:800;opacity:1;margin-top:6px}
 section{padding:56px 0;border-bottom:1px solid var(--line)}
 h2{font-size:30px;line-height:1.2;margin-bottom:10px;font-weight:800}
 .lead{color:var(--muted);max-width:780px;margin-bottom:28px}
@@ -102,13 +105,13 @@ h2{font-size:30px;line-height:1.2;margin-bottom:10px;font-weight:800}
 .reply{display:inline-block;background:${C.highlight};color:var(--ink);font-weight:800;font-size:22px;text-decoration:none;padding:18px 36px;border-radius:14px}
 footer{padding:28px 0 40px;color:var(--muted);font-size:14px}
 img{-webkit-user-drag:none}
-@media (max-width:820px){.grid3,.pair,.why,.anat{grid-template-columns:1fr}.anat figure{padding:0 34px}.mark{width:28px;height:28px;margin-top:-14px;font-size:15px}header h1{font-size:32px}h2{font-size:25px}body{font-size:17px}.more img{width:100px;height:100px}}
+@media (max-width:820px){header h1{white-space:normal}header p .big{font-size:21px}.grid3,.pair,.why,.anat{grid-template-columns:1fr}.anat figure{padding:0 34px}.mark{width:28px;height:28px;margin-top:-14px;font-size:15px}header h1{font-size:32px}h2{font-size:25px}body{font-size:17px}.more img{width:100px;height:100px}}
 </style></head><body>
 
 <header><div class="wrap">
   <div class="from">For ${esc(d.name)}, from Dan</div>
   <h1>Two new versions of your Facebook ad, free to keep.</h1>
-  <p>${d.since ? `Your current ad has run since ${esc(d.since)}. ` : ''}We made two new versions from your own reviews and your own photo. Download them, run them, change them. No strings.</p>
+  <p><span>${d.since ? `Your current ad has run since ${esc(d.since)}. ` : ''}We made two new versions from your own reviews and your own photo.</span><span>Download them, run them, change them.</span><span class="big">No strings.</span></p>
 </div></header>
 
 <section><div class="wrap">
