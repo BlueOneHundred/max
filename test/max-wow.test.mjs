@@ -35,7 +35,7 @@ test('build 14: the WOW test and house rules are enforced before drawing', () =>
   assert.match(p('problem-fix', {photo: 'library/stand-ins/02-heating.png'}), /stand-in photo may only be used in the "preview"/);
   assert.match(p('preview', {photo: 'clients/m/photos/van.jpg'}), /preview must use a stand-in/);
   assert.match(p('split-claim', {proofBig: ''}), /needs "proofBig"/);
-  assert.match(p('problem-fix', {proof: 'Fast, friendly, fair and fully licensed for every heating and drain job in Okotoks and towns near it', headline: 'No heat?'}), /words on the picture.*20 or fewer/);
+  assert.match(p('problem-fix', {proof: 'Fast, friendly, fair and fully licensed for every heating and drain job in Okotoks and the towns near it', headline: 'No heat?'}), /words on the picture.*20 or fewer/);
 });
 
 test('build 14: colours are made readable (highlight on the panel, white on the accent)', () => {

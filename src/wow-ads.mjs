@@ -8,7 +8,8 @@ import {contrastRatio, readableAccent} from './pack-maker.mjs';
 export const WOW_SIZE = 1080;
 export const WOW_LAYOUTS = ['problem-fix', 'split-claim', 'big-review', 'bold-text', 'big-number', 'preview'];
 export const BAND_TEXT = 'SAMPLE PHOTO · NOT YOUR TEAM';
-// What each layout needs (besides button and logo line, which every layout has).
+// What each layout needs (besides button and logo line, which every layout has; build 26: the button is not drawn,
+// it is the Facebook button the page shows under the ad).
 export const WOW_NEEDS = {
   'problem-fix': ['headline', 'proof', 'photo'],
   'split-claim': ['kicker', 'headline', 'proofBig', 'proofText', 'photo'],
@@ -19,12 +20,12 @@ export const WOW_NEEDS = {
 };
 // Fields each layout shows; anything else given is ignored and named in the notes.
 export const WOW_SHOWS = {
-  'problem-fix': ['headline', 'proof', 'button', 'photo', 'footnote'],
-  'split-claim': ['kicker', 'headline', 'proofBig', 'proofText', 'button', 'photo', 'footnote'],
-  'big-review': ['kicker', 'quote', 'stars', 'who', 'button', 'photo', 'footnote'],
-  'bold-text': ['kicker', 'headline', 'badge', 'button', 'footnote'],
-  'big-number': ['kicker', 'number', 'numberLine', 'button', 'photo', 'footnote'],
-  preview: ['headline', 'proof', 'button', 'photo', 'footnote'],
+  'problem-fix': ['headline', 'proof', 'photo', 'footnote'],
+  'split-claim': ['kicker', 'headline', 'proofBig', 'proofText', 'photo', 'footnote'],
+  'big-review': ['kicker', 'quote', 'stars', 'who', 'photo', 'footnote'],
+  'bold-text': ['kicker', 'headline', 'badge', 'footnote'],
+  'big-number': ['kicker', 'number', 'numberLine', 'photo', 'footnote'],
+  preview: ['headline', 'proof', 'photo', 'footnote'],
 };
 
 const FONT_DIR = new URL('./book-fonts/', import.meta.url);
@@ -45,7 +46,6 @@ const fromHsl = (h, s, l) => { const c = (1 - Math.abs(2 * l - 1)) * s, x = c * 
   const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
   return '#' + [r, g, b].map(v => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('').toUpperCase(); };
 const STAR = c => `<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path fill="${c || 'currentColor'}" d="M12 1.8l3.1 6.6 7.2.9-5.3 5 1.4 7.1L12 17.9l-6.4 3.5 1.4-7.1-5.3-5 7.2-.9z"/></svg>`;
-const CHEVRON = '<svg class="chev" viewBox="0 0 10 16" aria-hidden="true"><path d="M2 2l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // **words** are drawn in the highlight colour; \n is a line break; ★ becomes a drawn star (no font has to carry it).
 export function richText(value, starColour) {
@@ -129,7 +129,10 @@ h1 span{text-wrap-style:balance}
 }
 
 function layoutBody(ad, C, images) {
-  const R = v => richText(v, C.highlight), btn = (cls) => `<div class="btn ${cls}" data-k="button">${esc(ad.button)}${CHEVRON}</div>`;
+  // Build 26: no button is drawn on the picture. Facebook shows the advertiser's real button under the picture, and a
+  // drawn one does nothing when tapped (Meta's ad rules: no images of functions that do not exist). ad.button stays in
+  // choices.json for the page, which shows the ad with that real button under it.
+  const R = v => richText(v, C.highlight);
   const logo = (style, extra = '') => `<div class="logo" data-k="logo" style="${style}">${esc(ad.logoLine)}</div>${extra}`;
   const foot = (style) => ad.footnote ? `<div class="foot" data-k="footnote" style="${style}">${esc(ad.footnote)}</div>` : '';
   switch (ad.layout) {
@@ -141,7 +144,7 @@ h1{position:absolute;left:60px;top:600px;width:960px;height:250px;font-family:'A
 .proof{background:#fff;color:${C.panel};border-radius:16px;padding:.47em .68em;font-weight:800;font-size:38px;white-space:nowrap;line-height:1.15}
 .proof em{color:${C.accent}}`,
       html: `<div class="bar"></div>${photoTag(ad, images, 'card')}<h1 class="fit${/\\n|\n/.test(String(ad.headline || '')) ? ' lines' : ''}" data-k="headline" data-max="118" data-min="80"><span>${R(ad.headline)}</span></h1>
-<div class="row fit" data-k="row" data-max="38" data-min="26" data-scale=".proof,.btn"><div class="proof" data-k="proof">${R(ad.proof)}</div>${btn('line')}</div>
+<div class="row fit" data-k="row" data-max="38" data-min="26" data-scale=".proof"><div class="proof" data-k="proof">${R(ad.proof)}</div></div>
 ${logo(`left:60px;bottom:38px;opacity:.85`)}${foot(`right:60px;bottom:36px;width:420px;text-align:right;color:rgba(255,255,255,.8)`)}`};
     case 'split-claim':
       return {css: `body{background:#fff}
@@ -156,7 +159,6 @@ h1{position:absolute;left:56px;top:175px;width:470px;height:390px;font-family:'A
       html: `${photoTag(ad, images, 'side')}<div class="panel"></div><div class="kick fit" data-k="kicker" data-max="40" data-min="28">${R(ad.kicker)}</div>
 <h1 class="fit${/\\n|\n/.test(String(ad.headline || '')) ? ' lines' : ''}" data-k="headline" data-max="190" data-min="110"><span>${R(ad.headline)}</span></h1>
 <div class="box"><div class="n fit" data-k="proofBig" data-max="104" data-min="64" style="height:112px">${R(ad.proofBig)}</div><div class="t fit" data-k="proofText" data-max="34" data-min="24" style="height:84px">${R(ad.proofText)}</div></div>
-<div class="btnwrap fit" data-k="row" data-max="30" data-min="24" data-scale=".btn">${btn('fill')}</div>
 <div class="logo fit" data-k="logo" data-max="18" data-min="12" style="left:60px;bottom:40px;width:440px;height:30px;white-space:nowrap;letter-spacing:1.5px;line-height:1.3;color:#fff;display:flex;align-items:flex-end">${esc(ad.logoLine)}</div>${foot(`left:60px;top:926px;width:440px;font-size:14px;line-height:1.28;color:${C.soft};opacity:.9`)}`};
     case 'big-review': {
       const stars = Math.min(Math.max(Math.round(Number(ad.stars) || 0), 0), 5);
@@ -173,7 +175,7 @@ h1 em{color:${C.accent}}
         html: `<div class="kick fit" data-k="kicker" data-max="64" data-min="30">${R(ad.kicker)}</div><div class="q">“</div>
 <h1 class="fit${/\\n|\n/.test(String(ad.quote || '')) ? ' lines' : ''}" data-k="quote" data-max="100" data-min="64"><span>${R(ad.quote)}</span></h1>
 <div class="who fit" data-k="who" data-max="32" data-min="22">${stars ? `<span class="stars">${STAR(C.accent).repeat(stars)}</span>` : ''}<span>${R(ad.who)}</span></div>
-${foot(`left:70px;top:800px;width:940px;color:${C.panel};opacity:.85`)}<div class="band"></div><div class="btnpos">${btn('fill')}</div>${logo(`left:70px;bottom:72px;color:#fff;opacity:.92`)}`};
+${foot(`left:70px;top:800px;width:940px;color:${C.panel};opacity:.85`)}<div class="band"></div>${logo(`left:70px;bottom:72px;color:#fff;opacity:.92`)}`};
       return {css: `body{background:${C.soft};color:${C.panel}}
 .kick{position:absolute;left:70px;top:80px;max-width:940px;background:${C.panel};color:#fff;font-weight:800;font-size:34px;letter-spacing:3px;padding:14px 26px;border-radius:12px;text-transform:uppercase;white-space:nowrap}
 .q{position:absolute;left:52px;top:150px;font-family:'Archivo Black';font-size:260px;color:${C.accent};line-height:1}
@@ -187,7 +189,7 @@ h1 em{color:${C.accent}}
       html: `<div class="kick fit" data-k="kicker" data-max="34" data-min="24">${R(ad.kicker)}</div><div class="q">“</div>
 <h1 class="fit${/\\n|\n/.test(String(ad.quote || '')) ? ' lines' : ''}" data-k="quote" data-max="92" data-min="58"><span>${R(ad.quote)}</span></h1>
 <div class="who fit" data-k="who" data-max="30" data-min="22">${stars ? `<span class="stars">${STAR(C.accent).repeat(stars)}</span>` : ''}<span>${R(ad.who)}</span></div>
-${photoTag(ad, images, 'strip')}<div class="btnpos">${btn('dark')}</div>${logo(`left:60px;bottom:48px;font-size:20px`)}${foot(`left:70px;top:660px;width:940px;color:${C.panel};opacity:.85`)}`};
+${photoTag(ad, images, 'strip')}${logo(`left:60px;bottom:48px;font-size:20px`)}${foot(`left:70px;top:660px;width:940px;color:${C.panel};opacity:.85`)}`};
     }
     case 'bold-text':
       return {css: `body{background:${C.accent}}
@@ -200,7 +202,7 @@ h1 em{color:#fff}
 .badge{background:#fff;color:${C.panel};border-radius:16px;padding:.47em .74em;font-weight:800;font-size:38px;white-space:nowrap;line-height:1.15}`,
       html: `<div class="stripe"></div><div class="kick fit" data-k="kicker" data-max="44" data-min="30">${R(ad.kicker)}</div>
 <h1 class="fit${/\\n|\n/.test(String(ad.headline || '')) ? ' lines' : ''}" data-k="headline" data-max="190" data-min="110"><span>${R(ad.headline)}</span></h1>
-<div class="row fit" data-k="row" data-max="38" data-min="26" data-scale=".badge,.btn"><div class="badge" data-k="badge">${R(ad.badge)}</div>${btn('line')}</div>
+<div class="row fit" data-k="row" data-max="38" data-min="26" data-scale=".badge"><div class="badge" data-k="badge">${R(ad.badge)}</div></div>
 ${logo(`left:70px;bottom:44px;opacity:.92`)}${foot(`right:70px;bottom:42px;width:420px;text-align:right;color:${C.pale}`)}`};
     case 'big-number':
       // Build 16: without a photo the number fills the ad; a thin rule and the name and button sit at the bottom.
@@ -212,7 +214,7 @@ ${logo(`left:70px;bottom:44px;opacity:.92`)}${foot(`right:70px;bottom:42px;width
         html: `<div class="kick fit" data-k="kicker" data-max="44" data-min="30">${R(ad.kicker)}</div>
 <div class="n fit" data-k="number" data-max="400" data-min="180"><span>${R(ad.number)}</span></div>
 <div class="sub fit" data-k="numberLine" data-max="58" data-min="34"><span>${R(ad.numberLine)}</span></div>
-${foot(`left:70px;top:760px;width:940px;color:${C.soft}`)}<div class="rule"></div><div class="btnpos">${btn('fill')}</div>${logo(`left:70px;bottom:74px;opacity:.9`)}`};
+${foot(`left:70px;top:760px;width:940px;color:${C.soft}`)}<div class="rule"></div>${logo(`left:70px;bottom:74px;opacity:.9`)}`};
       return {css: `.kick{position:absolute;left:70px;top:80px;width:940px;height:60px;font-weight:800;font-size:44px;letter-spacing:5px;color:${C.highlight};text-transform:uppercase;white-space:nowrap}
 .n{position:absolute;left:58px;top:140px;width:964px;height:350px;font-family:'Anton';line-height:1;color:#fff;white-space:nowrap;display:flex;align-items:center}
 .sub{position:absolute;left:70px;top:505px;width:940px;height:80px;font-weight:800;font-size:52px;white-space:nowrap;display:flex;align-items:center}
@@ -223,7 +225,7 @@ ${foot(`left:70px;top:760px;width:940px;color:${C.soft}`)}<div class="rule"></di
       html: `<div class="kick fit" data-k="kicker" data-max="44" data-min="30">${R(ad.kicker)}</div>
 <div class="n fit" data-k="number" data-max="330" data-min="180"><span>${R(ad.number)}</span></div>
 <div class="sub fit" data-k="numberLine" data-max="52" data-min="34"><span>${R(ad.numberLine)}</span></div>
-${photoTag(ad, images, 'strip')}<div class="fade"></div><div class="btnpos">${btn('fill')}</div>${logo(`left:60px;bottom:48px;font-size:20px`)}${foot(`left:70px;top:596px;width:940px;color:${C.soft}`)}`};
+${photoTag(ad, images, 'strip')}<div class="fade"></div>${logo(`left:60px;bottom:48px;font-size:20px`)}${foot(`left:70px;top:596px;width:940px;color:${C.soft}`)}`};
     default: throw new Error(`Unknown layout ${ad.layout}`);
   }
 }

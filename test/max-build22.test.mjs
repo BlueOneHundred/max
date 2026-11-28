@@ -31,7 +31,7 @@ test('Max build 22: decodeImage uses nativeImage when it can, and draws a WebP i
 const brand = {panel: '#0A2616', accent: '#00781F', soft: '#E4F2E8', highlight: '#3DDC6E'};
 const page = anatomy => wowPageHtml({name: 'Test Plumbing', slug: 'test-plumbing', brand, since: 'June 2024',
   current: {show: 'files/current-ad.jpg', title: 'Now', text: 'Their ad.'},
-  ads: [{show: 'files/ad-1.png', download: 'files/ad-1.png', title: 'A', text: 'a'}, {show: 'files/ad-2.png', download: 'files/ad-2.png', title: 'B', text: 'b'}],
+  ads: [{show: 'files/ad-1.png', download: 'files/ad-1.png', title: 'A', text: 'a', button: 'Learn more'}, {show: 'files/ad-2.png', download: 'files/ad-2.png', title: 'B', text: 'b', button: 'Learn more'}],
   preview: {show: 'files/sample-with-technician.png'}, situation: 'Someone with no heat', more: [{show: 'files/more-1.jpg'}], moreText: 'More.',
   note: {text: 'Your website lists (403) 982-2580 and +64 9 555 0123.'}, anatomy});
 
@@ -40,7 +40,7 @@ test('Max build 22: "why the new ads look like this" explains new ad 1 with its 
   assert.deepEqual(items.map(i => i.quote), ['No heat tonight?', 'We\'re 24/7.', '4.9 ★ from 120 Google reviews', '', 'Learn more']);
   const html = page(items);
   assert.match(html, /Why the new ads look like this/);
-  assert.equal((html.match(/class="mark"/g) || []).length, ANATOMY_MARKS.length);
+  assert.equal((html.match(/class="mark/g) || []).length, ANATOMY_MARKS.length + 1, 'marks 1 to 4 on the picture, mark 5 on Facebook\'s button bar (build 26)');
   assert.match(html, /<q>No heat tonight\?<\/q>/);
   assert.doesNotMatch(html.slice(html.indexOf('Why the new ads')), /Your ad now/, 'their current ad is never scored');
   // Only a problem-fix ad 1 gets the section; the page is unchanged otherwise.
@@ -49,7 +49,7 @@ test('Max build 22: "why the new ads look like this" explains new ad 1 with its 
   // A one-line headline leaves out the "answer" point and its mark.
   const one = anatomyItems({layout: 'problem-fix', headline: 'Blocked drain?', proof: '20 years', button: 'Call now'});
   assert.deepEqual(one.map(i => i.n), [1, 3, 4, 5]);
-  assert.equal((page(one).match(/class="mark"/g) || []).length, 4);
+  assert.equal((page(one).match(/class="mark/g) || []).length, 4);
 });
 
 test('Max build 22: phone numbers stay on one line', () => {

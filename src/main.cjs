@@ -110,7 +110,10 @@ app.whenReady().then(async () => {
   schedules=await new Schedules({directory:dataDir,encrypt:connections.encrypt,decrypt:connections.decrypt,service,teamFolder,onChange:()=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:schedules-changed');}}).init();
   // Max build 36: package runs (one request runs a creator's whole package, bot after bot, checked between steps).
   const [{Pipelines},{APP_PHONE_SCRIPT,PHONE}]=await Promise.all([import('./pipeline.mjs'),import('./app-phone-check.mjs')]);
-  pipelines=await new Pipelines({features:edition.features,directory:dataDir,teamRoot:teamFolder.root(),teamFolder,service,busy:c=>schedules.busy(c),
+  // Max build 26: the app's own Ad Library check (is the business's ad still running?) uses the team's treg connection.
+  const {makeAdCheck}=await import('./ad-check.mjs');
+  const tregConnection=()=>{const all=connections.customMcp();const key=Object.keys(all).find(k=>/treg/i.test(k))||Object.keys(all).find(k=>{try{return /treg/i.test(new URL(all[k].url).hostname);}catch{return false;}});return key?all[key]:null;};
+  pipelines=await new Pipelines({features:edition.features,directory:dataDir,teamRoot:teamFolder.root(),teamFolder,service,busy:c=>schedules.busy(c),adCheck:makeAdCheck(tregConnection),
     checkApp:async file=>(await require('./pdf-maker.cjs').renderPage({file:path.join(teamFolder.root(),file),width:PHONE.width,height:PHONE.height,root:teamFolder.root(),script:APP_PHONE_SCRIPT,freshStorage:true})).result}).init();
   const {ComputerControl}=await import('./computer-control.mjs');
   computerControl=new ComputerControl({service,cloud,humanComputers,epochs:computerControlEpochs,revisions:computerControlRevisions,setHuman:setHumanControl,snapshot:computerSnapshot,onState:state=>{if(window&&!window.isDestroyed())window.webContents.send('orbit:computer-state',state);mobile?.requestSync();}});

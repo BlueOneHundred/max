@@ -179,6 +179,8 @@ export const DAILY = {
 export const leadMessage = ({date, count}) => `Daily lead search (from the Max app, ${date}). This message is Tavin's go (decisions 104 to 109): do your default job now and write leads/leads-${date}.md, with a "## Top 3" of the ${count} best leads. Under each Top 3 lead put a line "- Folder: <folder name>" (small letters and dashes, the same name as leads/ads/<folder>/) and a line "- Country: <US, CA, UK, AU or NZ>", and save its current ad pictures in leads/ads/<folder>/. End the file with the line "Status: done". Don't ask questions.`;
 export const leadSecondMessage = ({date}) => `Second try for today's leads (from the Max app): leads/leads-${date}.md has no "Status: done" line yet. Finish today's lead search now (keep anything already in the file and add to it), with the "## Top 3", the "- Folder:" and "- Country:" lines and the last line "Status: done". Don't ask questions.`;
 
+// Build 26: the same words as pipeline.mjs adCheckLine (kept here so this file needs no import from pipeline.mjs).
+const adLine = c => c.state === 'active' ? `Their ad was still active in the Meta Ad Library (checked ${c.when}).` : c.state === 'stopped' ? `Their ad is NOT active in the Meta Ad Library any more (checked ${c.when}): do not send as it stands.` : `Could not check whether their ad still runs (${c.why || 'no answer'}); look in the Meta Ad Library before sending.`;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 // Build 23: the review page shows the email first (To, From, subjects, emails 1 to 3) and folds the drafting notes under it.
 export function splitEmail(text) {
@@ -195,7 +197,8 @@ export function reviewSection({run, current = [], ads = [], email = '', forMax =
   const img = (p, label) => `<figure><a href="${esc(rel(p))}"><img src="${esc(rel(p))}" alt="${esc(label)}"></a><figcaption>${esc(label)}</figcaption></figure>`;
   const page = `pages/${run.business}/wow/`;
   const status = run.status === 'review' ? '<span class="ok">Ready for your review</span>' : `<span class="bad">Stopped: ${esc((run.reason || '').split('\n')[0])}</span>`;
-  return `<section><h2>${esc(run.name || run.business)} <small>(${esc(run.business)}, version ${esc(run.version)})</small></h2><p>${status}</p>
+  const ad = run.adCheck ? `<p class="${run.adCheck.state === 'active' ? 'ok' : 'bad'}">${esc(adLine(run.adCheck))}</p>` : '';
+  return `<section><h2>${esc(run.name || run.business)} <small>(${esc(run.business)}, version ${esc(run.version)})</small></h2><p>${status}</p>${ad}
 ${run.status === 'review' ? '' : `<pre class="why">${esc(run.reason || '')}</pre>`}
 <div class="row">${current.map((p, i) => img(p, `Their ad now${current.length > 1 ? ' ' + (i + 1) : ''}`)).join('')}${ads.filter(a => /wow-[12]\.png$/.test(a)).map(p => img(p, p.includes('wow-1') ? 'New ad 1 (download)' : 'New ad 2 (download)')).join('')}${ads.filter(a => /PREVIEW/.test(a)).map(p => img(p, 'Preview, stand-in (page only)')).join('')}</div>
 <div class="row small">${ads.filter(a => /wow-[3-9]\.png$/.test(a)).map(p => img(p, 'More (blurred on the page)')).join('')}</div>

@@ -13,6 +13,7 @@ import {ExtraWorkdays, isWorkday} from './workdays.mjs';
 import {splitDecisions, parseStanding, DEFAULT_STANDING, STANDING_FILE} from './decisions-archive.mjs';
 import {atomicWrite} from './storage-safety.mjs';
 import {AUTO_PICK, chooseCreators, askedHandles, bookRequest, pickReport, minutes} from './auto-pick.mjs';
+import {leadSection, leadAdIds} from './ad-check.mjs';
 import {WOW_BOTS, WOW_STEPS, wowVars, verdictLine, choicesProblems, choicesPhotos, choicesFiles, emailProblems, validBusiness, leadsDone, topLeads, chooseLeads, AB_HEADER, nextVersion, monthSpend, DAILY, leadMessage, leadSecondMessage, reviewSection, readyPage} from './wow-run.mjs';
 
 export const PIPELINE_BOTS = ['Creator Partnerships', 'Creative Studio', 'Edition Writer', 'App Builder', 'Art Director', 'Marketing Kit', 'Visual Check', 'Outreach Writer'];
@@ -115,6 +116,13 @@ export function queueSection(q) {
   const rows = items.map(i => `| ${i.n} | ${i.name || i.business} (${i.business}) | ${i.version} | ${i.from || 'reviews'} | ${i.status}${i.decision ? ` (I${i.decision})` : ''} | ${oneLineQ(i.reason || i.note || '').slice(0, 160)} |`).join('\n');
   return `## Queue${q.paused ? ' (stopped: tell Max "start the queue again" or give him a new list)' : ''}\n\n| # | Business | Version | From step | Status | Note |\n|---|---|---|---|---|---|\n${rows}\n\n`;
 }
+// Build 26: the ad check in one plain line (review page, status file, Max's chat).
+export function adCheckLine(c) {
+  if (!c) return '';
+  if (c.state === 'active') return `Their ad was still active in the Meta Ad Library (checked ${c.when}).`;
+  if (c.state === 'stopped') return `Their ad is NOT active in the Meta Ad Library any more (checked ${c.when}): do not send as it stands.`;
+  return `Could not check whether their ad still runs (${c.why || 'no answer'}); look in the Meta Ad Library before sending.`;
+}
 const oneLineQ = s => String(s || '').replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
 
 // The decided line that tells every bot what the run is. Appended once when the run starts.
@@ -159,8 +167,8 @@ export function fixMessage({run, step, bot, reasons}) {
 export const runVars = run => ({handle: run.handle || '', base: run.base, type: run.type || '', edition: `ebooks/${run.base}/editions/${run.handle || ''}`});
 
 export class Pipelines {
-  constructor({directory, teamRoot, teamFolder, service, busy, checkApp, now = Date.now, onChange = () => {}, features = {}}) {
-    Object.assign(this, {directory, teamRoot, teamFolder, service, busy, checkApp, now, onChange});
+  constructor({directory, teamRoot, teamFolder, service, busy, checkApp, adCheck = null, now = Date.now, onChange = () => {}, features = {}}) {
+    Object.assign(this, {directory, teamRoot, teamFolder, service, busy, checkApp, adCheck, now, onChange});
     // Max: Max's creator automations can be switched off in edition.json "features" (all on when not given, as in Max).
     this.features = {creatorLog: true, creatorsSafetyNet: true, autoPick: true, wowDaily: false, ...features};
     this.runs = []; this.auto = {}; this.archive = {}; this.daily = {}; this.queue = emptyQueue(); this.ticking = false; this.closed = false; this.persist = Promise.resolve();
@@ -580,9 +588,9 @@ export class Pipelines {
     const picks = [...n.started.filter(x => !x.error).map(x => '@' + x.handle), ...(book ? ['@' + book.handle + ' (new base book)'] : [])].join(', ') || 'nobody';
     await this.teamFolder.write(null, `pipeline/auto-pick-${localDate(t)}.md`, pickReport({date: localDate(t), time: localTime(t), picks, skipped: n.skipped, candidates: n.candidates, started: n.started, book}));
   }
-  async runLine(done, problems = 'none') {
+  async runLine(done, problems = 'none', cost = '$0.00') {
     const t = this.now();
-    await this.teamFolder.append(`board/runs-${localDate(t)}.md`, `${localTime(t)} | Package runs | done: ${done} | cost: $0.00 | problems: ${String(problems).replace(/\n/g, ' ').slice(0, 400)}\n`).catch(() => {});
+    await this.teamFolder.append(`board/runs-${localDate(t)}.md`, `${localTime(t)} | Package runs | done: ${done} | cost: ${cost} | problems: ${String(problems).replace(/\n/g, ' ').slice(0, 400)}\n`).catch(() => {});
   }
   async writeStatus(run, line) {
     if (isWow(run)) return this.writeWowStatus(run, line);
@@ -662,7 +670,7 @@ ${looks.length ? `<div class="card look"><b>Worth a look (not blocking):</b><br>
   async stopWow(business, reason = 'Stopped by Tavin.') {
     const run = this.findWow(String(business || '').trim().toLowerCase()); if (!run || !['running', 'review'].includes(run.status)) throw new Error(`No open WOW run for ${business}.`);
     run.status = 'stopped'; run.reason = reason; run.finishedAt = this.now(); run.queue = []; delete run.current;
-    await this.save(); await this.writeStatus(run, reason); await this.runLine(`WOW run ${run.business} stopped by Tavin`); return structuredClone(run);
+    await this.save(); await this.writeStatus(run, reason); await this.runLine(`WOW run ${run.business} stopped: ${oneLine(reason).replace(/\.$/, '')}`); return structuredClone(run);
   }
   async writeWowStatus(run, line) {
     const t = this.now(), all = await this.runSteps(run);
@@ -683,10 +691,25 @@ ${looks.length ? `<div class="card look"><b>Worth a look (not blocking):</b><br>
     }
     return reviewSection({run, current, ads, email: await read(`outreach/${b}-emails.md`), forMax, rel});
   }
+  // Build 26: is the business's ad still running? Never blocks the review; a stopped ad is said plainly.
+  async checkAd(run) {
+    const t = this.now(), when = `${localDate(t)} ${localTime(t)}`;
+    if (!this.adCheck) return {state: 'unknown', why: 'the ad check is not set up in this app', when};
+    try {
+      const read = async p => { try { return await readFile(join(this.teamRoot, p), 'utf8'); } catch { return ''; } };
+      let text = run.lead ? leadSection(await read(run.lead), run.business) : '';
+      if (!text) { let names = []; try { names = (await readdir(join(this.teamRoot, 'leads'))).filter(n => /^leads-.*\.md$/.test(n)).sort().reverse(); } catch {}
+        for (const n of names) { text = leadSection(await read('leads/' + n), run.business); if (text) break; } }
+      const r = await this.adCheck(leadAdIds(text, run.business));
+      if (r.cost) await this.runLine(`Ad Library check for ${run.business}: ${r.state === 'active' ? 'their ad is still active' : r.state === 'stopped' ? 'their ad is NOT active any more' : 'could not tell'}`, 'none', `$0, treg $${r.cost}`);
+      return {...r, when};
+    } catch (e) { return {state: 'unknown', why: String(e.message || e).slice(0, 200), when}; }
+  }
   async wowReady(run) {
+    run.adCheck = await this.checkAd(run);
     run.status = 'review'; run.readyAt = this.now(); await this.save();
     await this.teamFolder.write(null, `pipeline/wow-${run.business}/review.html`, readyPage({date: localDate(run.readyAt), summary: `${run.name}: every step passed its automatic check.`, sections: [await this.wowSection(run, p => '../../' + p)]}));
-    await this.writeStatus(run, `Ready for Tavin: pipeline/wow-${run.business}/review.html.`);
+    await this.writeStatus(run, `Ready for Tavin: pipeline/wow-${run.business}/review.html. ${adCheckLine(run.adCheck)}`);
     await this.runLine(`WOW run ${run.business} READY for Tavin's review (pipeline/wow-${run.business}/review.html)`);
   }
   async dailySettings() {
@@ -807,7 +830,7 @@ ${looks.length ? `<div class="card look"><b>Worth a look (not blocking):</b><br>
     await this.queueChanged();
     await this.runLine(`queue: ${add.length} added (${add.map(a => `${a.business} ${a.version}${a.from ? ' from ' + a.from : ''}`).join(', ')})`);
     this.kick();
-    return this.queueStatus();
+    return {...this.queueStatus(), note: 'The app starts the first item within a few seconds when nothing else is running; it posts each start in Max\'s chat.'};
   }
   async stopQueue({clear = false} = {}) {
     const q = this.queue; q.paused = true;
@@ -834,7 +857,7 @@ ${looks.length ? `<div class="card look"><b>Worth a look (not blocking):</b><br>
       if (run && run.status === 'running') continue;
       i.status = run ? run.status : 'stopped'; i.finishedAt = this.now(); changed = true;
       if (!run) i.reason = 'The run is no longer in the app\'s list.';
-      else if (run.status === 'review') { i.reason = ''; this.noteForMax(`${i.name} is ready for your review: pipeline/wow-${i.business}/review.html (I${i.decision}).`); }
+      else if (run.status === 'review') { i.reason = run.adCheck?.state === 'stopped' ? 'Their ad is no longer active: do not send as it stands.' : ''; this.noteForMax(`${i.name} is ready for your review: pipeline/wow-${i.business}/review.html (I${i.decision}). ${adCheckLine(run.adCheck)}`); }
       else { i.reason = String(run.reason || run.status).split('\n').slice(0, 3).join(' ').slice(0, 400); this.noteForMax(`${i.name} stopped: ${i.reason}`); }
     }
     const running = this.runs.some(r => isWow(r) && r.status === 'running');

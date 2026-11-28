@@ -14,7 +14,8 @@ const plain = s => String(s ?? '').replace(/\*\*/g, '').replace(/\\n/g, '\n');
 // Build 22 (Tavin, 26 Nov 2026): "how the new ads are built" (the approved formula, decision 84, and the WOW test, decision 82),
 // shown on new ad 1 with numbered marks. Only the new ad is explained; their current ad is never scored. The words come from
 // ad 1 itself (choices.json), so nothing is typed twice. Marks sit on the problem-fix layout's fixed places (1080 x 1080).
-export const ANATOMY_MARKS = [{n: 4, side: 'left', y: 29.6}, {n: 1, side: 'left', y: 61.7}, {n: 2, side: 'left', y: 72.6}, {n: 3, side: 'left', y: 84.6}, {n: 5, side: 'right', y: 84.6}];
+// Build 26: mark 5 sits on Facebook's button bar under the picture (no button is drawn on the picture any more).
+export const ANATOMY_MARKS = [{n: 4, side: 'left', y: 29.6}, {n: 1, side: 'left', y: 61.7}, {n: 2, side: 'left', y: 72.6}, {n: 3, side: 'left', y: 84.6}];
 export function anatomyItems(ad) {
   if (!ad || ad.layout !== 'problem-fix') return null;
   const lines = plain(ad.headline).split('\n').map(l => l.trim()).filter(Boolean);
@@ -25,7 +26,7 @@ export function anatomyItems(ad) {
     {n: 2, title: 'Your answer, straight after.', quote: lines.slice(1).join(' '), text: 'Something you already do, said in a few words.'},
     {n: 3, title: 'One proof they can check.', quote: proof, text: 'Your own number. It says more than words like "trusted" or "quality".'},
     {n: 4, title: 'Your own photo.', quote: '', text: 'Real, not stock, so people see the actual business.'},
-    {n: 5, title: 'One button.', quote: button, text: 'One clear next step.'}
+    {n: 5, title: 'One button, Facebook\'s own.', quote: button, text: 'One clear next step, under the picture where people expect to tap.'}
   ].filter(i => i.n !== 2 || i.quote);
 }
 
@@ -44,7 +45,9 @@ export function wowPageWordProblems(words) {
 //     situation, note?: {text}, more: [{show}], moreText, brand: {panel, accent, soft, highlight}}
 export function wowPageHtml(d) {
   const C = d.brand, a1 = d.ads[0], a2 = d.ads[1];
-  const card = (img, alt, tag, tagCls, title, text, extra = '') => `<div class="card"><div class="pic"><img src="${esc(img)}" alt="${esc(alt)}"></div><div class="body"><span class="tag ${tagCls}">${esc(tag)}</span><h3>${esc(title)}</h3><p>${esc(text)}</p>${extra}</div></div>`;
+  // Build 26: Facebook's own button bar under a new ad, as it shows in the feed (the button is never drawn on the picture).
+  const fb = (button, mark = '') => button ? `<div class="fbbar"><span class="fbname">${esc(d.name)}</span><span class="fbbtn">${esc(button)}</span>${mark}</div>` : '';
+  const card = (img, alt, tag, tagCls, title, text, extra = '', button = '') => `<div class="card"><div class="pic"><img src="${esc(img)}" alt="${esc(alt)}"></div>${fb(button)}<div class="body"><span class="tag ${tagCls}">${esc(tag)}</span><h3>${esc(title)}</h3><p>${esc(text)}</p>${extra}</div></div>`;
   const dl = (file, as) => `<a class="dl" href="${esc(file)}" download="${esc(as)}">Download (PNG, 1080 x 1080)</a>`;
   const subject = encodeURIComponent(`${d.shortName || d.name} ads`);
   return `<!doctype html>
@@ -89,7 +92,13 @@ h2{font-size:30px;line-height:1.2;margin-bottom:10px;font-weight:800}
 .nb{white-space:nowrap}
 .anat{display:grid;grid-template-columns:540px 1fr;gap:32px;align-items:start}
 .anat figure{position:relative;margin:0;padding:0 44px}
-.anat figure img{width:100%;display:block;border-radius:16px}
+.anat figure img{width:100%;display:block;border-radius:16px 16px 0 0}
+.anat .shot{position:relative}
+.anat .fbbar{position:relative;border-radius:0 0 16px 16px}
+.mark.m5{right:-42px;top:50%}
+.fbbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f0f2f5;border-top:1px solid #dadde1;padding:10px 14px}
+.fbname{font-size:14px;font-weight:700;color:#1c1e21;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbbtn{flex:none;background:#e4e6eb;color:#050505;font-size:14px;font-weight:700;padding:8px 14px;border-radius:6px;white-space:nowrap}
 .mark{position:absolute;width:34px;height:34px;margin-top:-17px;border-radius:50%;background:var(--ink);color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center}
 .anat ol{list-style:none;padding:0;display:grid;gap:18px}
 .anat li{display:grid;grid-template-columns:40px 1fr;gap:14px;align-items:start}
@@ -105,7 +114,7 @@ h2{font-size:30px;line-height:1.2;margin-bottom:10px;font-weight:800}
 .reply{display:inline-block;background:${C.highlight};color:var(--ink);font-weight:800;font-size:22px;text-decoration:none;padding:18px 36px;border-radius:14px}
 footer{padding:28px 0 40px;color:var(--muted);font-size:14px}
 img{-webkit-user-drag:none}
-@media (max-width:820px){header h1{white-space:normal}header p .big{font-size:21px}.grid3,.pair,.why,.anat{grid-template-columns:1fr}.anat figure{padding:0 34px}.mark{width:28px;height:28px;margin-top:-14px;font-size:15px}header h1{font-size:32px}h2{font-size:25px}body{font-size:17px}.more img{width:100px;height:100px}}
+@media (max-width:820px){.mark.m5{right:-34px}header h1{white-space:normal}header p .big{font-size:21px}.grid3,.pair,.why,.anat{grid-template-columns:1fr}.anat figure{padding:0 34px}.mark{width:28px;height:28px;margin-top:-14px;font-size:15px}header h1{font-size:32px}h2{font-size:25px}body{font-size:17px}.more img{width:100px;height:100px}}
 </style></head><body>
 
 <header><div class="wrap">
@@ -116,11 +125,11 @@ img{-webkit-user-drag:none}
 
 <section><div class="wrap">
   <h2>Your ad now, and two new ones</h2>
-  <p class="lead">Each new ad names one problem a customer has and gives one proof from your reviews. Both are square, for Facebook and Instagram feeds.</p>
+  <p class="lead">Each new ad names one problem a customer has and gives one proof from your reviews. Both are square, for Facebook and Instagram feeds.${a1.button ? ` The grey bar under each one is Facebook's own button, the one your ad uses now ("${esc(a1.button)}"): you choose it in Ads Manager, it isn't part of the picture.` : ''}</p>
   <div class="grid3">
     ${card(d.current.show, 'Your current ad', 'Your ad now', 'now', d.current.title, d.current.text)}
-    ${card(a1.show, 'New ad 1', 'New ad 1', 'new', a1.title, a1.text, dl(a1.download, `${d.slug}-ad-1.png`))}
-    ${card(a2.show, 'New ad 2', 'New ad 2', 'new', a2.title, a2.text, dl(a2.download, `${d.slug}-ad-2.png`))}
+    ${card(a1.show, 'New ad 1', 'New ad 1', 'new', a1.title, a1.text, dl(a1.download, `${d.slug}-ad-1.png`), a1.button)}
+    ${card(a2.show, 'New ad 2', 'New ad 2', 'new', a2.title, a2.text, dl(a2.download, `${d.slug}-ad-2.png`), a2.button)}
   </div>
 </div></section>
 
@@ -128,7 +137,7 @@ ${d.anatomy ? `<section><div class="wrap">
   <h2>Why the new ads look like this</h2>
   <p class="lead">Each new ad does 5 things. Here they are on new ad 1.</p>
   <div class="anat">
-    <figure><img src="${esc(a1.show)}" alt="New ad 1, marked">${ANATOMY_MARKS.filter(m => d.anatomy.some(i => i.n === m.n)).map(m => `<span class="mark" style="${m.side}:2px;top:${m.y}%">${m.n}</span>`).join('')}</figure>
+    <figure><div class="shot"><img src="${esc(a1.show)}" alt="New ad 1, marked">${ANATOMY_MARKS.filter(m => d.anatomy.some(i => i.n === m.n)).map(m => `<span class="mark" style="${m.side}:-42px;top:${m.y}%">${m.n}</span>`).join('')}</div>${fb(a1.button, d.anatomy.some(i => i.n === 5) ? '<span class="mark m5">5</span>' : '')}</figure>
     <div><ol>${d.anatomy.map(i => `<li><span class="num">${i.n}</span><div><h3>${esc(i.title)}</h3>${i.quote ? `<q>${esc(i.quote)}</q>` : ''}<p>${esc(i.text)}</p></div></li>`).join('')}</ol>
     <p class="short">And 20 words or fewer on the picture, so it reads in a second on a phone. Big advertisers that test many ads on Facebook keep theirs this short too.</p></div>
   </div>
@@ -137,8 +146,8 @@ ${d.anatomy ? `<section><div class="wrap">
   <h2>The same ad, with one of your team in it</h2>
   <p class="lead">This is what new ad 1 looks like with a person doing the work${d.insteadOf ? ` instead of ${esc(d.insteadOf)}` : ''}.</p>
   <div class="pair">
-    ${card(a1.show, 'New ad 1', 'New ad 1', 'new', d.ownTitle || 'With your photo', 'Yours to download above.')}
-    ${card(d.preview.show, 'Sample: new ad 1 with a technician', 'Sample only', 'sample', 'With a technician', 'The person in this photo is not on your team.', '<div class="nodl">Not available to download.</div>')}
+    ${card(a1.show, 'New ad 1', 'New ad 1', 'new', d.ownTitle || 'With your photo', 'Yours to download above.', '', a1.button)}
+    ${card(d.preview.show, 'Sample: new ad 1 with a technician', 'Sample only', 'sample', 'With a technician', 'The person in this photo is not on your team.', '<div class="nodl">Not available to download.</div>', a1.button)}
   </div>
   <div class="why">
     <div><h3>Why a photo of your team is better</h3><p>${esc(d.situation)} is about to let a stranger into their home. A photo of the person who will actually turn up answers their first question: who's coming?${d.ownLine ? ' ' + esc(d.ownLine) : ''} A person shows them who they'll meet at the door.</p></div>

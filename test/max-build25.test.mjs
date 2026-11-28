@@ -133,3 +133,47 @@ test('Max build 25: a streaming reply saves and redraws a few times, not once pe
     await service.close();
   } finally { await rm(dataDir, {recursive: true, force: true}); }
 });
+
+test('Max build 26: no button is drawn on any layout; the page shows Facebook\'s own button bar under each new ad', async () => {
+  const W = await import('../src/wow-ads.mjs'), P = await import('../src/wow-page.mjs');
+  const brand = {primary: '#0E6137', accent: '#00781F', panel: '#0A2616', soft: '#E4F2E8', name: 'TEST', place: 'TESTTOWN'};
+  const base = {name: 'x', button: 'Book now', logoLine: 'TEST CO · TESTTOWN', photo: 'p.jpg'};
+  const ads = [{layout: 'problem-fix', headline: 'Leak?\nFixed today.', proof: '4.9 from 120 reviews'}, {layout: 'preview', headline: 'Leak?\nFixed today.', proof: '4.9'},
+    {layout: 'split-claim', kicker: 'LEAK?', headline: 'Fixed today.', proofBig: '120', proofText: 'reviews'}, {layout: 'big-review', kicker: 'LEAK!', quote: 'Fast.', stars: 5, who: 'A. Tester'},
+    {layout: 'big-review', kicker: 'LEAK!', quote: 'Fast.', stars: 5, who: 'A. Tester', photo: ''}, {layout: 'bold-text', kicker: 'LEAK?', headline: 'Fixed today.', badge: 'Testtown'},
+    {layout: 'big-number', kicker: 'SINCE', number: '2001', numberLine: 'Local.'}, {layout: 'big-number', kicker: 'SINCE', number: '2001', numberLine: 'Local.', photo: ''}];
+  for (const a of ads) { const html = W.wowPage({ad: {...base, ...a}, brand, images: {'p.jpg': 'data:image/png;base64,AA=='}}); assert.doesNotMatch(html, /Book now|data-k="button"|class="btn/, a.layout); }
+  // The button no longer counts as words on the picture, but every ad still needs one (the page shows it).
+  assert.match(W.wowWordProblems({...base, ...ads[0], button: ''}).join(' '), /needs "button"/);
+  const html = P.wowPageHtml({name: 'Test Co', slug: 'test-co', brand, current: {show: 'c.jpg', title: 'Now', text: 'x'},
+    ads: [{show: 'a1.png', download: 'a1.png', title: 'A', text: 'a', button: 'Book now'}, {show: 'a2.png', download: 'a2.png', title: 'B', text: 'b', button: 'Book now'}],
+    preview: {show: 'p.png'}, situation: 'Someone', more: [{show: 'm.jpg'}], moreText: 'More.', anatomy: null});
+  assert.equal((html.match(/<div class="fbbar">/g) || []).length, 4, 'ads 1 and 2, and both ads in the team-photo pair');
+  assert.match(html, /Facebook's own button, the one your ad uses now \(&quot;Book now&quot;\)|Facebook's own button, the one your ad uses now \("Book now"\)/);
+});
+
+test('Max build 26: before review the app checks the business\'s ad is still active; the result is on the review page and in Max\'s note', async () => {
+  const {leadAdIds, adsActive, makeAdCheck} = await import('../src/ad-check.mjs');
+  const lead = '## Top 3\n\n### 1. Alpha Co (Town, CA), plumbing\n- Folder: alpha-co\n- Ads: 1 active\n  - Ad 1: https://www.facebook.com/ads/library/?id=111222333 | ad id 111222333 | Ad Library page id 999888777.\n\n### 2. Beta Co\n- Folder: beta-co\n- ad id 444555666 | page id 123123123\n';
+  assert.deepEqual(leadAdIds(lead, 'alpha-co'), {pageId: '999888777', adIds: ['111222333']});
+  assert.deepEqual(leadAdIds(lead, 'beta-co'), {pageId: '123123123', adIds: ['444555666']});
+  // Only the "active" flag counts, never the end date (28 Nov: running ads had end dates in March and August).
+  assert.equal(adsActive({results: [{ad_archive_id: '111222333', is_active: true, end_date_string: '2026-03-02'}]}, ['111222333']).active, true);
+  assert.equal(adsActive({results: [{ad_archive_id: '777', is_active: true}]}, ['111222333']).active, false);
+  assert.equal(adsActive({results: []}, []).active, false);
+  let asked; const check = makeAdCheck({url: 'https://treg.example/mcp'}, async (_c, endpoint, params) => { asked = {endpoint, params}; return {status: 200, body: {results: [{ad_archive_id: '111222333', is_active: true}]}, cost_usd: 0.00188}; });
+  assert.equal((await check({pageId: '999888777', adIds: ['111222333']})).state, 'active'); assert.equal(asked.params.pageId, '999888777');
+  assert.equal((await makeAdCheck(null)({pageId: '1'})).state, 'unknown');
+
+  const env = await make(), {root, service, p} = env;
+  try {
+    await put(root, 'leads/leads-2026-11-24.md', lead);
+    p.adCheck = async ({pageId, adIds}) => ({state: pageId === '999888777' && adIds[0] === '111222333' ? 'stopped' : 'unknown', cost: 0.00188});
+    await p.queueWow([{business: 'alpha-co', name: 'Alpha Co', version: 'A', lead: 'leads/leads-2026-11-24.md', from: 'check'}]);
+    await pass(env, 'alpha-co'); await p.tick();
+    assert.equal(p.findWow('alpha-co').adCheck.state, 'stopped');
+    assert.match(await readFile(join(root, 'pipeline/wow-alpha-co/review.html'), 'utf8'), /NOT active in the Meta Ad Library any more/);
+    assert.match(service.notes.join('\n'), /Alpha Co is ready for your review.*NOT active/);
+    assert.match(await readFile(join(root, `board/runs-${localDate(Date.now())}.md`), 'utf8'), /Ad Library check for alpha-co: their ad is NOT active any more \| cost: \$0, treg \$0\.00188/);
+  } finally { await env.done(); }
+});
