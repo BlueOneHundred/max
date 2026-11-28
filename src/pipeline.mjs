@@ -104,6 +104,19 @@ export const runLabel = run => isWow(run) ? `WOW run ${run.business}` : isBook(r
 const oneLine = s => String(s || '').replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
 const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 
+// ---- Build 25: the queue. Tavin gives Max a list once; the app starts each next WOW run when the one before reaches
+// review or stops, one business at a time (decision 103). Before build 25 Tavin nudged Max for every next run (9 times on
+// 28 Nov). The list is kept in pipelines.json and copied to pipeline/queue.json and the top of pipeline/status.md.
+export const emptyQueue = () => ({items: [], paused: false, notes: [], told: true});
+export const queueOpen = item => ['waiting', 'running'].includes(item.status);
+export function queueSection(q) {
+  const items = (q?.items || []).filter(i => queueOpen(i) || Date.now() - (i.finishedAt || i.addedAt || 0) < 86400000);
+  if (!items.length && !q?.paused) return '';
+  const rows = items.map(i => `| ${i.n} | ${i.name || i.business} (${i.business}) | ${i.version} | ${i.from || 'reviews'} | ${i.status}${i.decision ? ` (I${i.decision})` : ''} | ${oneLineQ(i.reason || i.note || '').slice(0, 160)} |`).join('\n');
+  return `## Queue${q.paused ? ' (stopped: tell Max "start the queue again" or give him a new list)' : ''}\n\n| # | Business | Version | From step | Status | Note |\n|---|---|---|---|---|---|\n${rows}\n\n`;
+}
+const oneLineQ = s => String(s || '').replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
+
 // The decided line that tells every bot what the run is. Appended once when the run starts.
 export function decisionLine({n, handle, base, contact, notes, when, by = ''}) {
   const how = contact === 'dm'
@@ -150,7 +163,7 @@ export class Pipelines {
     Object.assign(this, {directory, teamRoot, teamFolder, service, busy, checkApp, now, onChange});
     // Max: Max's creator automations can be switched off in edition.json "features" (all on when not given, as in Max).
     this.features = {creatorLog: true, creatorsSafetyNet: true, autoPick: true, wowDaily: false, ...features};
-    this.runs = []; this.auto = {}; this.archive = {}; this.daily = {}; this.ticking = false; this.closed = false; this.persist = Promise.resolve();
+    this.runs = []; this.auto = {}; this.archive = {}; this.daily = {}; this.queue = emptyQueue(); this.ticking = false; this.closed = false; this.persist = Promise.resolve();
     // Build 38: the creator progress log (creators/creators-log.csv and .html). Never allowed to break a run.
     this.log = new CreatorLog({teamRoot, teamFolder, now});
     this.workdays = new ExtraWorkdays(teamRoot, now);
@@ -158,11 +171,11 @@ export class Pipelines {
   logged(promise) { return Promise.resolve(promise).catch(() => {}); }
   file() { return join(this.directory, 'pipelines.json'); }
   async init() {
-    try { const data = JSON.parse(await readFile(this.file(), 'utf8')); if (Array.isArray(data.runs)) this.runs = data.runs; if (data.auto && typeof data.auto === 'object') this.auto = data.auto; if (data.archive && typeof data.archive === 'object') this.archive = data.archive; if (data.daily && typeof data.daily === 'object') this.daily = data.daily; } catch (e) { if (e.code !== 'ENOENT') throw new Error('Could not read saved package runs.'); }
+    try { const data = JSON.parse(await readFile(this.file(), 'utf8')); if (Array.isArray(data.runs)) this.runs = data.runs; if (data.auto && typeof data.auto === 'object') this.auto = data.auto; if (data.archive && typeof data.archive === 'object') this.archive = data.archive; if (data.daily && typeof data.daily === 'object') this.daily = data.daily; if (data.queue && Array.isArray(data.queue.items)) this.queue = {...emptyQueue(), ...data.queue}; } catch (e) { if (e.code !== 'ENOENT') throw new Error('Could not read saved package runs.'); }
     return this;
   }
   async save() {
-    const body = JSON.stringify({version: 1, runs: this.runs.slice(-50), auto: this.auto, archive: this.archive, daily: this.daily}, null, 1);
+    const body = JSON.stringify({version: 1, runs: this.runs.slice(-50), auto: this.auto, archive: this.archive, daily: this.daily, queue: this.queue}, null, 1);
     const write = async () => { await mkdir(this.directory, {recursive: true}); const tmp = this.file() + '.' + randomUUID(); await writeFile(tmp, body); await rename(tmp, this.file()); };
     this.persist = this.persist.then(write, write); await this.persist; this.onChange();
   }
@@ -263,8 +276,19 @@ export class Pipelines {
     if (!bot) return null;
     return this.service.state.conversations.filter(c => c.botId === bot.id && !c.parentThreadId && c.kind !== 'group').sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
   }
+  // Build 25: each WOW run gets its own new chat with each bot (one chat per bot per run), so no bot's chat grows run
+  // after run (28 Nov: Ad Writer's one chat had 90 messages and a 60-message chat froze the window). Older runs and the
+  // package and book runs keep using the bot's latest chat.
+  runConversation(run, bot) {
+    if (!isWow(run) || this.features.freshChats === false || typeof this.service.newChat !== 'function') return this.botConversation(bot);
+    run.chats ||= {};
+    const known = run.chats[bot] && this.service.state.conversations.find(c => c.id === run.chats[bot]);
+    if (known) return known;
+    const latest = this.botConversation(bot); if (!latest) return null;
+    const c = this.service.newChat(latest.botId, `WOW ${run.business} (I${run.decision})`); run.chats[bot] = c.id; return c;
+  }
   async deliver(run, bot, message) {
-    const c = this.botConversation(bot); if (!c) throw new Error(`No chat found for the bot "${bot}".`);
+    const c = this.runConversation(run, bot); if (!c) throw new Error(`No chat found for the bot "${bot}".`);
     if (this.busy(c)) return false;
     const runId = randomUUID(), at = this.now();
     run.current = {bot, conversationId: c.id, runId, at, message: message.slice(0, 200)}; await this.save();
@@ -273,9 +297,9 @@ export class Pipelines {
   }
   // Build 22: why a bot's reply failed (its error line and the tools that failed), so the stop reason names the cause
   // (26 Nov: Fact Finder paused after 4 failed save_image_to_team calls on WebP photos; the reason said only "an error").
-  failureDetail(_id, bot) {
+  failureDetail(id, bot) {
     try {
-      const c = this.botConversation(bot); const m = [...(c?.messages || [])].reverse().find(x => x.role === 'assistant' && ['error', 'cancelled'].includes(x.status));
+      const c = (id && this.service.state.conversations.find(x => x.id === id)) || this.botConversation(bot); const m = [...(c?.messages || [])].reverse().find(x => x.role === 'assistant' && ['error', 'cancelled'].includes(x.status));
       if (!m) return '';
       const failed = {}; for (const a of m.activities || []) if (a.status === 'error') failed[a.name] = (failed[a.name] || 0) + 1;
       const tools = Object.entries(failed).map(([n, k]) => `${n} failed ${k} time${k > 1 ? 's' : ''}`).join(', ');
@@ -376,7 +400,8 @@ export class Pipelines {
   async tick() {
     if (this.ticking || this.closed) return; this.ticking = true;
     try { if (this.features.creatorLog) await this.logged(this.log.tick()); if (this.features.creatorsSafetyNet) await this.logged(this.watchCreators()); if (this.features.autoPick) await this.logged(this.autoPick()); if (this.features.wowDaily) await this.logged(this.wowDaily()); await this.logged(this.archiveDecisions());
-      for (const run of this.runs.filter(r => r.status === 'running')) await this.advance(run).catch(async e => { await this.fail(run, (isBook(run) ? 'The book run' : 'The package run') + ' hit an error: ' + e.message); }); }
+      for (const run of this.runs.filter(r => r.status === 'running')) await this.advance(run).catch(async e => { await this.fail(run, (isBook(run) ? 'The book run' : isWow(run) ? 'The WOW run' : 'The package run') + ' hit an error: ' + e.message); });
+      await this.logged(this.queueTick()); }
     finally { this.ticking = false; }
   }
   async advance(run) {
@@ -396,7 +421,7 @@ export class Pipelines {
     const state = this.replyState(run);
     if (state === 'waiting') return;
     if (state === 'lost') { delete run.current; await this.save(); return; }
-    const finished = run.current.bot; run.history.push({step: step.id, bot: finished, at: run.current.at, finishedAt: this.now(), state}); delete run.current;
+    const finished = run.current.bot; run.history.push({step: step.id, bot: finished, conversationId: run.current.conversationId, at: run.current.at, finishedAt: this.now(), state}); delete run.current;
     run.queue.shift(); run.messages.shift();
     if (state === 'failed' && !run.queue.length) return this.retryOrStop(run, step, all, [`${finished}'s run ended with an error or was stopped before it finished.${this.failureDetail(run.history.at(-1)?.conversationId || '', finished)}`]);
     if (run.queue.length) { await this.save(); return; }
@@ -583,7 +608,7 @@ export class Pipelines {
       : isBook(r)
       ? `| book: ${r.base}${r.handle ? ` (for @${r.handle})` : ''} | ${r.base} | ${r.status} | ${r.status === 'running' ? (bookSteps[r.step]?.id || '') : ''} | pipeline/book-${r.base}/status.md |`
       : `| @${r.handle} | ${r.base} | ${r.status} | ${r.status === 'running' ? (this.stepsFor(r, pkgSteps)[r.step]?.id || '') : ''} | pipeline/${r.handle}/status.md |`).join('\n');
-    await this.teamFolder.write(null, 'pipeline/status.md', `# Package runs\n\nUpdated ${localDate(t)} ${localTime(t)}.\n\n| Creator | Base book | Status | Step now | Details |\n|---|---|---|---|---|\n${lines}\n\n## For Max\n${this.runs.some(r => r.status === 'review') ? 'Packages are waiting for Tavin\'s review (status "review").' : ''}${this.runs.some(r => r.status === 'stopped' && this.now() - (r.finishedAt || 0) < 86400000) ? ' A run stopped in the last day: see its status file.' : ''}${this.runs.some(r => isBook(r) && r.status === 'running') ? ' A book run is going: see its status file.' : ''}\n`);
+    await this.teamFolder.write(null, 'pipeline/status.md', `# Package runs\n\nUpdated ${localDate(t)} ${localTime(t)}.\n\n${queueSection(this.queue)}| Creator | Base book | Status | Step now | Details |\n|---|---|---|---|---|\n${lines}\n\n## For Max\n${this.runs.some(r => r.status === 'review') ? 'Packages are waiting for Tavin\'s review (status "review").' : ''}${this.runs.some(r => r.status === 'stopped' && this.now() - (r.finishedAt || 0) < 86400000) ? ' A run stopped in the last day: see its status file.' : ''}${this.runs.some(r => isBook(r) && r.status === 'running') ? ' A book run is going: see its status file.' : ''}\n`);
   }
   async writeReview(run) {
     const v = this.vars(run), root = this.teamRoot, ed = v.edition, rel = p => '../../' + p;
@@ -624,13 +649,13 @@ ${looks.length ? `<div class="card look"><b>Worth a look (not blocking):</b><br>
     let step = 0; if (from) { step = steps.findIndex(x => x.id === from); if (step < 0) throw new Error(`No step "${from}". Steps: ${list.map(x => x.id).join(', ')}.`); }
     const when = this.now(), decisions = `board/decisions-${localDate(when).slice(0, 7)}.md`;
     let text = ''; try { text = await readFile(join(this.teamRoot, decisions), 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
-    const n = nextInstruction(text + '\n' + await this.archived(decisions)), bots = list.slice(step).map(x => x.bot);
+    const n = nextInstruction(text + '\n' + await this.archived(decisions)), bots = steps.slice(step).filter(x => !x.review).map(x => x.bot);
     name = oneLine(name) || business;
-    const who = by === 'auto' ? `picked by the Max app's daily run under Tavin's standing rule (decisions 104 to 109), ${localTime(when)}` : `Tavin, through Max, ${localTime(when)}`;
+    const who = by === 'auto' ? `picked by the Max app's daily run under Tavin's standing rule (decisions 104 to 109), ${localTime(when)}` : by === 'queue' ? `Tavin's queue, through Max; the app started it when the run before had finished, ${localTime(when)}` : `Tavin, through Max, ${localTime(when)}`;
     await this.teamFolder.append(decisions, (text && !text.endsWith('\n') ? '\n' : '') + `${localDate(when)} I${n} | for: ${[...new Set(bots)].join(', ')} | instruction: WOW RUN for ${name} (${business}), version ${version}${lead ? `, lead from ${lead}` : ''}${step ? `, from step "${steps[step].id}"` : ''} (${who}). Max's app messages each of you in order ("WOW run for ${business} ..."); do your step when that message comes, and the app checks your files. Drafts only: Tavin publishes the page and sends.${notes ? ' Note: ' + oneLine(notes).slice(0, 300) : ''} | status: decided | ${localTime(when)}\n`);
     const run = {id: randomUUID(), kind: 'wow', business, name, version, lead, notes, decision: n, status: 'running', startedAt: when, step, attempt: 0, queue: [], history: [], ...(by ? {by} : {})};
     this.runs.push(run); await this.save();
-    await this.writeStatus(run, by === 'auto' ? `Picked by the daily run (decided line I${n}).` : `Started by Tavin through Max (decided line I${n}).`);
+    await this.writeStatus(run, by === 'auto' ? `Picked by the daily run (decided line I${n}).` : by === 'queue' ? `Started from Tavin's queue (decided line I${n}).` : `Started by Tavin through Max (decided line I${n}).`);
     await this.runLine(`WOW run ${business} started (version ${version}${step ? `, from step "${steps[step].id}"` : ''}; I${n})`);
     return structuredClone(run);
   }
@@ -748,6 +773,110 @@ ${looks.length ? `<div class="card look"><b>Worth a look (not blocking):</b><br>
       d.phase = 'done'; await this.save();
     }
   }
+  // ---- Build 25: the queue ----
+  async writeQueue() {
+    const t = this.now(), q = this.queue;
+    await this.teamFolder.write(null, 'pipeline/queue.json', JSON.stringify({updated: `${localDate(t)} ${localTime(t)}`, paused: q.paused,
+      about: 'Written by the Max app (build 25). Change it through Max: queue_wow_runs, stop_queue, queue_status. Edits made here are not read back.',
+      items: q.items.slice(-40)}, null, 1));
+  }
+  async queueChanged() { await this.save(); await this.writeQueue(); await this.writeAllStatus(this.now()); }
+  // Items: {business, name?, version?, lead?, from?, note?}. A business already open in the queue is refused (one item each).
+  async queueWow(items, {replace = false} = {}) {
+    if (!Array.isArray(items) || !items.length) throw new Error('Give the list of businesses to run, in order.');
+    if (items.length > 20) throw new Error('At most 20 businesses in one list.');
+    const steps = await this.steps('wow'), ids = steps.filter(x => !x.review).map(x => x.id);
+    const q = this.queue, kept = replace ? q.items.filter(i => !queueOpen(i) || i.status === 'running') : q.items;
+    if (replace) for (const i of q.items) if (i.status === 'waiting') { i.status = 'removed'; i.reason = 'Removed: Tavin gave a new list.'; i.finishedAt = this.now(); }
+    const seen = new Set(kept.filter(queueOpen).map(i => i.business)), add = [];
+    for (const [k, raw] of items.entries()) {
+      const business = String(raw?.business || '').trim().toLowerCase(), where = `Item ${k + 1} (${business || 'no business'})`;
+      if (!validBusiness(business)) throw new Error(`${where}: give the business folder name, small letters and dashes, for example "mccance-plumbing".`);
+      if (seen.has(business)) throw new Error(`${where}: ${business} is already in the queue. One item per business; stop_queue with clear, or give the list with replace.`);
+      const before = this.findWow(business);
+      const version = String(raw.version || before?.version || '').trim().toUpperCase();
+      if (!['A', 'B'].includes(version)) throw new Error(`${where}: give the email version, A or B (there is no earlier run to take it from).`);
+      const from = String(raw.from || '').trim().toLowerCase();
+      if (from && !ids.includes(from)) throw new Error(`${where}: no step "${from}". Steps: ${ids.join(', ')}.`);
+      seen.add(business);
+      add.push({id: randomUUID(), business, name: oneLine(raw.name) || before?.name || business, version, lead: oneLine(raw.lead) || before?.lead || '', from, note: oneLine(raw.note || raw.notes || '').slice(0, 300), status: 'waiting', addedAt: this.now()});
+    }
+    let n = Math.max(0, ...q.items.map(i => i.n || 0));
+    for (const a of add) a.n = ++n;
+    q.items.push(...add); q.items = q.items.slice(-40); q.paused = false; q.told = false;
+    await this.queueChanged();
+    await this.runLine(`queue: ${add.length} added (${add.map(a => `${a.business} ${a.version}${a.from ? ' from ' + a.from : ''}`).join(', ')})`);
+    this.kick();
+    return this.queueStatus();
+  }
+  async stopQueue({clear = false} = {}) {
+    const q = this.queue; q.paused = true;
+    if (clear) for (const i of q.items) if (i.status === 'waiting') { i.status = 'removed'; i.reason = 'Removed: Tavin cleared the queue.'; i.finishedAt = this.now(); }
+    await this.queueChanged(); await this.runLine(`queue stopped by Tavin${clear ? ' and cleared' : ''}`);
+    const running = q.items.find(i => i.status === 'running');
+    return {...this.queueStatus(), note: running ? `The run for ${running.business} carries on to its end (stop_wow_run stops it). No new run starts from the queue.` : 'No new run starts from the queue.'};
+  }
+  async resumeQueue() {
+    const q = this.queue; q.paused = false; q.told = !q.items.some(queueOpen);
+    await this.queueChanged(); await this.runLine('queue started again by Tavin'); this.kick(); return this.queueStatus();
+  }
+  queueStatus() {
+    const q = this.queue, items = q.items.filter(i => queueOpen(i) || this.now() - (i.finishedAt || 0) < 86400000);
+    return {paused: q.paused, waiting: q.items.filter(i => i.status === 'waiting').length, running: q.items.find(i => i.status === 'running')?.business || null, dailyRunToday: this.dailyBusy() ? 'the daily run is picking or running its businesses: the queue waits for it' : 'not in the way',
+      items: items.map(i => ({n: i.n, business: i.business, name: i.name, version: i.version, from: i.from || 'reviews', status: i.status, decision: i.decision ? 'I' + i.decision : '', reason: i.reason || '', note: i.note || ''})), file: 'pipeline/queue.json'};
+  }
+  // The daily run goes first once it has picked: the queue waits while it picks or runs its businesses.
+  dailyBusy() { const d = this.daily; return !!(this.features.wowDaily && d?.date === localDate(this.now()) && ['pick', 'run'].includes(d.phase)); }
+  async queueTick() {
+    const q = this.queue; let changed = false;
+    for (const i of q.items.filter(i => i.status === 'running')) {
+      const run = this.runs.find(r => r.id === i.run);
+      if (run && run.status === 'running') continue;
+      i.status = run ? run.status : 'stopped'; i.finishedAt = this.now(); changed = true;
+      if (!run) i.reason = 'The run is no longer in the app\'s list.';
+      else if (run.status === 'review') { i.reason = ''; this.noteForMax(`${i.name} is ready for your review: pipeline/wow-${i.business}/review.html (I${i.decision}).`); }
+      else { i.reason = String(run.reason || run.status).split('\n').slice(0, 3).join(' ').slice(0, 400); this.noteForMax(`${i.name} stopped: ${i.reason}`); }
+    }
+    const running = this.runs.some(r => isWow(r) && r.status === 'running');
+    const next = q.items.find(i => i.status === 'waiting');
+    if (next && !running && !q.paused && !this.dailyBusy()) {
+      changed = true;
+      try {
+        const open = this.findWow(next.business), redo = !!open;
+        if (open && open.status === 'review') await this.stopWow(next.business, `Replaced by a redo from Tavin's queue (item ${next.n}).`);
+        const note = [next.note, redo ? 'Restart: no new ab-test.md row.' : ''].filter(Boolean).join(' ');
+        const r = await this.startWow({business: next.business, name: next.name, version: next.version, lead: next.lead, from: next.from, notes: note, by: 'queue'});
+        Object.assign(next, {status: 'running', run: r.id, decision: r.decision, startedAt: this.now()});
+        await this.queueChanged(); const live = this.runs.find(x => x.id === r.id); if (live) await this.advance(live).catch(e => this.fail(live, 'The WOW run hit an error: ' + e.message));
+        const left = q.items.filter(i => i.status === 'waiting').length;
+        this.noteForMax(`Started ${next.name} (version ${next.version}${next.from ? ', from ' + next.from : ''}; I${r.decision}). ${left ? left + ' more waiting.' : 'Last one in the queue.'}`);
+      } catch (e) {
+        Object.assign(next, {status: 'not started', reason: e.message.slice(0, 400), finishedAt: this.now()});
+        this.noteForMax(`${next.name} could not start: ${next.reason} Going on with the next.`);
+        await this.runLine(`queue: ${next.business} could not start`, e.message);
+      }
+    }
+    if (!q.told && !q.items.some(queueOpen)) {
+      q.told = true; changed = true;
+      const recent = q.items.filter(i => this.now() - (i.finishedAt || 0) < 86400000 && i.status !== 'removed');
+      const ready = recent.filter(i => i.status === 'review'), other = recent.filter(i => i.status !== 'review');
+      this.noteForMax(`The queue is empty. Ready for your review: ${ready.map(i => i.name).join(', ') || 'none'}.${other.length ? ' Not ready: ' + other.map(i => `${i.name} (${i.status})`).join(', ') + '.' : ''} Nothing is published or sent.`);
+      await this.runLine(`queue empty: ${ready.length} ready, ${other.length} not ready`);
+    }
+    if (changed) await this.queueChanged();
+    await this.tellMax();
+  }
+  noteForMax(line) { const t = this.now(); this.queue.notes = [...(this.queue.notes || []), `${localTime(t)} ${line}`].slice(-20); }
+  // The notes go into Max's latest chat as a note from the app (no AI run, no tokens), when Max is not working there.
+  async tellMax() {
+    const q = this.queue; if (!q.notes?.length || typeof this.service.addNote !== 'function') return;
+    const max = this.botConversation('Max'); if (!max || this.busy(max) || max.messages.some(m => m.status === 'streaming')) return;
+    const notes = q.notes; q.notes = [];
+    try { await this.service.addNote(max.id, `**Queue** (from the Max app)\n\n${notes.map(n => '- ' + n).join('\n')}`); await this.save(); }
+    catch { q.notes = [...notes, ...q.notes].slice(-20); }
+  }
+  // Start the queue's next step now rather than at the next 5-second tick (only once the app's timer runs).
+  kick() { if (this.timer) setTimeout(() => void this.tick().catch(() => {}), 50).unref?.(); }
   startTimer() { this.timer = setInterval(() => void this.tick().catch(() => {}), 5000); this.timer.unref?.(); }
   async close() { this.closed = true; clearInterval(this.timer); await this.persist; }
 }

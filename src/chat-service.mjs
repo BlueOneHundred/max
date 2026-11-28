@@ -18,6 +18,16 @@ const text = (value, label, max, allowEmpty = false) => {
   return value;
 };
 const id = value => text(value, 'ID', 100);
+export const CHANGE_EVERY = 500;
+export const KEEP_FULL_ACTIVITIES = 6;
+const small = v => typeof v === 'string' ? v.slice(0, 200) : (typeof v === 'number' || typeof v === 'boolean') ? v : undefined;
+export function slimActivity(a) {
+  const out = {}; for (const k of ['id', 'name', 'status', 'startedAt', 'finishedAt']) if (a?.[k] !== undefined) out[k] = a[k];
+  if (a?.input && typeof a.input === 'object') { const input = {}; for (const k of ['action', 'path', 'teamPath', 'file']) { const v = small(a.input[k]); if (v !== undefined) input[k] = v; } if (a.input.args?.url) input.args = {url: small(a.input.args.url)}; if (Object.keys(input).length) out.input = input; }
+  if (a?.result?.receiptId) out.result = {receiptId: small(a.result.receiptId)};
+  if (a?.detail) out.detail = small(a.detail);
+  return out;
+}
 export class ChatService {
   constructor({ dataDir, onChange = () => {}, backend = streamReply, promptGenerator = generateBotPrompt, runtimeFactory, workspaceFiles, memory, onGroupMembersChanging=async()=>{}, runDurationMs }) {
     this.store = new JsonStore(dataDir); this.diagnostics=new DiagnosticLog(dataDir);this.runDurationMs=runDurationMs; this.onChange = onChange; this.backend = backend; this.promptGenerator = promptGenerator; this.tasks = new Map(); this.promptTasks = new Map(); this.deletingBots = new Set(); this.deletingThreads=new Set();this.runtimeFactory = runtimeFactory; this.approvals = new Map(); this.closing = false; this.closed = false; this.computerPauseTasks = new Map(); this.teams=new TeamCoordinator(this);this.workspaceFiles=workspaceFiles;this.memory=memory;
@@ -38,7 +48,31 @@ export class ChatService {
   _ready() { if (!this.state || this.closed) throw new Error('Workspace is not available.'); }
   _conversation(value) { this._ready(); const c = this.state.conversations.find(c => c.id === id(value)); if (!c) throw new Error('Conversation not found.'); return c; }
   _bot(value) { this._ready(); const b = this.state.bots.find(b => b.id === id(value)); if (!b) throw new Error('Bot not found.'); if (this.deletingBots.has(b.id)) throw new Error('This bot is being deleted.'); return b; }
-  async _changed() { this.teams.syncReplies();await this.store.save(this.state); try { this.onChange(this.snapshot()); } catch {} return this.snapshot(); }
+  async _changed() { if(this.changeTimer){clearTimeout(this.changeTimer);this.changeTimer=null;} this.teams.syncReplies();await this.store.save(this.state); try { this.onChange(this.snapshot()); } catch {} return this.snapshot(); }
+  // Max build 25: while a bot streams, save and redraw at most every CHANGE_EVERY ms instead of on every chunk and tool
+  // event. Each save writes the whole workspace.json and each redraw sends the whole state to the window, so a busy bot
+  // froze the window as the file grew (28 Nov 2026: "Max is not responding", 15.8 MB). The run's end still saves at once.
+  _changedSoon() { if(this.changeTimer||this.closed)return; this.changeTimer=setTimeout(()=>{this.changeTimer=null;if(!this.closed)void this._changed().catch(()=>{});},CHANGE_EVERY); this.changeTimer.unref?.(); }
+  // Max build 25: finished replies keep only a short record of their tool calls (name, status, times); the full inputs
+  // and results stay on the newest few messages of the chat. 87% of workspace.json was these stored logs on 28 Nov.
+  _slimActivities(c) {
+    const keepFrom=Math.max(0,c.messages.length-KEEP_FULL_ACTIVITIES);
+    for(const [i,m] of c.messages.entries()){
+      if(i>=keepFrom||m.role!=='assistant'||m.status!=='complete'||m.activitiesSlim||!m.activities?.length)continue;
+      m.activities=m.activities.map(slimActivity);m.activitiesSlim=true;
+    }
+  }
+  // Max build 25: a chat for a bot that does not change what Tavin is looking at (WOW runs start one per run).
+  newChat(botId,title='New conversation') {
+    this._bot(botId); const now=Date.now(), c={id:randomUUID(),botId,title:String(title).slice(0,64)||'New conversation',draft:'',messages:[],createdAt:now,updatedAt:now};
+    this.state.conversations.push(c); return c;
+  }
+  // Max build 25: a note from the app itself in a chat (no AI run, no tokens), e.g. the queue's progress in Max's chat.
+  async addNote(conversationId,content) {
+    const c=this._conversation(conversationId); text(content,'Note',8000);
+    c.messages.push({id:randomUUID(),role:'assistant',kind:'app-note',content,status:'complete',createdAt:Date.now()}); c.updatedAt=Date.now();
+    await this._changed(); return c.messages.at(-1);
+  }
   _newConversation(botId) {
     const now = Date.now(), c = { id: randomUUID(), botId, title: 'New conversation', draft: '', messages: [], createdAt: now, updatedAt: now };
     this.state.conversations.push(c); this.state.activeBotId = botId; this.state.activeConversationId = c.id; return c;
@@ -294,7 +328,7 @@ export class ChatService {
           await abortable(this._prepareBotPrompt(this._bot(c.botId),firstUser?.setupIntention||firstUser?.content||'',settings,workspaceDir,controller.signal,firstUser?.setupSource||{conversationId:c.id,messageId:firstUser?.id}),controller.signal);
           bot=structuredClone(this._bot(c.botId));delete assistant.phase;await this._changed();
         }
-        const onActivity = activity => {if(controller.signal.aborted)return;budget.activity(activity);const entries=assistant.activities??=[];let current=entries.find(a=>a.id===activity.id);if(current)Object.assign(current,activity);else if(activity.name){if(entries.length>=limits.toolCalls+50){budget.stop('Paused at the activity record limit.');return;}entries.push(activity);}else return;if((activity.name||current?.name)==='recall_memory'&&activity.result?.ids)assistant.memoryRefs=[...new Set([...(assistant.memoryRefs||[]),...activity.result.ids])];void this._changed().catch(()=>{});};
+        const onActivity = activity => {if(controller.signal.aborted)return;budget.activity(activity);const entries=assistant.activities??=[];let current=entries.find(a=>a.id===activity.id);if(current)Object.assign(current,activity);else if(activity.name){if(entries.length>=limits.toolCalls+50){budget.stop('Paused at the activity record limit.');return;}entries.push(activity);}else return;if((activity.name||current?.name)==='recall_memory'&&activity.result?.ids)assistant.memoryRefs=[...new Set([...(assistant.memoryRefs||[]),...activity.result.ids])];if(activity.status==='approval'||c.kind==='group'||c.parentThreadId)void this._changed().catch(()=>{});else this._changedSoon();};
         await turnMemory?.checkpoint(c,assistant,'working');
         const memoryPacket=turnMemory?await abortable(turnMemory.contextPacket(c.id,history.findLast(m=>m.role==='user')?.content||''),controller.signal):{context:'',ids:[]};assistant.memoryRefs=memoryPacket.ids;
         if(memoryPacket.ids.length)onActivity({id:'memory-'+assistant.id,name:'recall_memory',status:'complete',startedAt:Date.now(),finishedAt:Date.now(),result:{count:memoryPacket.ids.length,ids:memoryPacket.ids},input:{automatic:true}});
@@ -311,7 +345,7 @@ export class ChatService {
           if(resumeMessage&&priorContent&&!continuationStarted&&chunk){assistant.content+='\n\n';continuationStarted=true;}
           assistant.content += chunk;if(chunk)respondAll();
           if (assistant.content.length > limits.outputCharacters){assistant.content=assistant.content.slice(0,limits.outputCharacters);budget.stop('Paused at the response size limit.');controller.signal.throwIfAborted();}
-          await this._changed();
+          if(c.kind==='group'||c.parentThreadId)await this._changed(); else this._changedSoon();
         }
         } finally {if(controller.signal.aborted)void Promise.resolve(iterator.return?.()).catch(()=>{});}
         if (controller.signal.aborted) throw controller.signal.reason;
@@ -327,7 +361,7 @@ export class ChatService {
         budget.close();void this.diagnostics.record({event:"run-end",provider:settings.provider,status:assistant.status,reason:assistant.limitReached?"limit":controller.signal.aborted?"user":assistant.status==="error"?"provider":undefined});
         if(!controller.signal.aborted)respondAll();if(broadcast&&!(controller.signal.aborted&&c.computerPause))await broadcast;
         for(const activity of assistant.activities||[])if(activity.status==='running'||activity.status==='approval')activity.status='cancelled';
-        c.updatedAt = Date.now(); this.tasks.delete(c.id);
+        c.updatedAt = Date.now(); this.tasks.delete(c.id); try { this._slimActivities(c); } catch {}
         if(assistant.status!=='complete'&&c.queue?.length)c.queuePaused=true;
         await this._changed().catch(() => {});
         await turnMemory?.checkpoint(c,assistant,assistant.status==='complete'?'complete':c.computerPause?'paused':'stopped').catch(()=>{});
@@ -350,5 +384,5 @@ export class ChatService {
     return this._changed();
   }
   async whenIdle() { while(this.tasks.size)await Promise.all([...this.tasks.values()].map(async t => { await t.ready; await t.promise; })); await this.store.flush(); await this.diagnostics.flush(); }
-  async close() { this.closing=true; for (const task of this.tasks.values()) task.controller.abort(new DOMException('App closed', 'AbortError')); await this.whenIdle(); await this.memory?.close();this.closed = true; }
+  async close() { this.closing=true; if(this.changeTimer){clearTimeout(this.changeTimer);this.changeTimer=null;} for (const task of this.tasks.values()) task.controller.abort(new DOMException('App closed', 'AbortError')); await this.whenIdle(); await this.memory?.close();this.closed = true; }
 }
